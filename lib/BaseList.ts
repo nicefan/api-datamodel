@@ -2,11 +2,15 @@ import Resource from './Resource'
 
 type ItemContructor<T> = new (...arg: any[]) => T
 type RequestMethod = (param: Obj) => Promise<any>
-
+type Interceptor = (method: Fn<Promise<any>>, Params: Obj, res?: Resource) => Promise<PagesResult>
+let _interceptor: undefined | Interceptor
 /**
  * 列表抽象类 <参数类型定义>
  */
-export default abstract class List<P extends Obj, T = any> {
+export default abstract class List<P extends Obj = Obj, T = any> {
+  static setInterceptor(func: Interceptor) {
+    _interceptor = func
+  }
   /** 集合类型构造器 */
   protected get _ItemConstructor(): void | ItemContructor<T> {
     return undefined
@@ -25,9 +29,9 @@ export default abstract class List<P extends Obj, T = any> {
   /** 当前页 */
   current = 1
   /** 总页数 */
-  totalPage = 1
+  pageCount = 1
   /** 每页大小 */
-  size = 10
+  pageSize = 10
   /** 总条数 */
   total = 0
   /** 加载更多状态 */
@@ -76,7 +80,7 @@ export default abstract class List<P extends Obj, T = any> {
 
   /** 设置每页条数, 重新计算当前页码并查询 */
   setSize(size: number) {
-    const page = Math.ceil(((this.current - 1) * this.size) / size) + 1
+    const page = Math.ceil(((this.current - 1) * this.pageSize) / size) + 1
     this.#pageParam = {
       size,
       current: page,
@@ -86,12 +90,12 @@ export default abstract class List<P extends Obj, T = any> {
   }
 
   /** 更新数据 */
-  update({ current, pages, size, total, records = [] }: Obj) {
+  update({ current, pageCount, pageSize, total, records = [] }: Obj) {
     this.current = current
-    this.totalPage = pages
-    this.size = size
+    this.pageCount = pageCount
+    this.pageSize = pageSize
     this.total = total
-    this.#status = current < pages ? 'more' : 'noMore'
+    this.#status = current < pageCount ? 'more' : 'noMore'
     this.records = !this._ItemConstructor ? records : records.map((item: Obj) => new (this._ItemConstructor as Cls<T>)(item))
     return this.records
   }
@@ -107,19 +111,19 @@ export default abstract class List<P extends Obj, T = any> {
 
   /** 获取指定页码数据 */
   async goPage(page: number) {
-    page = page < 1 ? 1 : page > this.totalPage ? this.totalPage : page
+    page = page < 1 ? 1 : page > this.pageCount ? this.pageCount : page
     this.#pageParam.current = page
     return this.request()
   }
 
   /** 是否还有下一页 */
   get hasNextPage(): boolean {
-    return this.current < this.totalPage
+    return this.current < this.pageCount
   }
 
   /** 加载下一页数据  */
   async loadMore() {
-    if (this.current < this.totalPage) {
+    if (this.current < this.pageCount) {
       const data = this.records
       const records = await this.goPage(this.current + 1)
       this.records = data.concat(records)
@@ -143,12 +147,15 @@ export type Pages<P, I> = typeof _P & {
  */
 export function pagesFactory<Para = Obj, I = Obj>(res: Obj | RequestMethod, Info?: ItemContructor<I>) {
   const _requestMethod = typeof res === 'function' ? res : res.getPageList.bind(res)
+  const ind = (param?: Obj) => {
+  }
   class _Pages extends List<Para, I> {
     get _ItemConstructor() {
       return Info
     }
     protected _requestMethod(param: Obj) {
-      return _requestMethod(param)
+      const result = _interceptor && _interceptor(_requestMethod, param, typeof res !== 'function' ? <Resource>res : undefined)
+      return (result instanceof Promise) ? result : _requestMethod(param)
     }
   }
   return _Pages as unknown as Pages<Para, I>

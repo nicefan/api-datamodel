@@ -3,7 +3,7 @@
  * @Autor: 范阳峰
  * @Date: 2020-07-06 17:17:59
  * @LastEditors: 范阳峰
- * @LastEditTime: 2020-09-22 15:26:07
+ * @LastEditTime: 2021-08-19 17:23:44
  */
 type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
 
@@ -78,9 +78,9 @@ interface PagesResult {
   /** 当前页 */
   current: number
   /** 总页数 */
-  pages: number
+  pageCount: number
   /** 分页大小 */
-  size: number
+  pageSize: number
   /** 总记录数 */
   total: number
   /** 数据记录 */
