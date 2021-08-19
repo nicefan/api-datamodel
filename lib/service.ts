@@ -4,24 +4,11 @@
  * @Autor: 范阳峰
  * @Date: 2020-07-09 14:53:53
  * @LastEditors: 范阳峰
- * @LastEditTime: 2021-08-17 23:27:03
+ * @LastEditTime: 2021-08-19 16:11:24
  */
 
 import merge from 'lodash/merge'
-
-interface Adapter {
-  request: (config: RequestConfig) => Promise<unknown>
-  [key: string]: any
-}
-
-let _adapter: Adapter
-  /** 设置请求处理对象 */
-export function setAdapter(adapter: Adapter): void {
-  _adapter = adapter
-}
-export function getAdapter() {
-  return _adapter
-}
+import Http from './Http'
 
 const config = {
   /** 服务地址,在web端或h5的开发环境下，走默认的/api前缀代理 */
@@ -95,13 +82,20 @@ export function getLoadingServe() {
 /** 平台初始化 */
 interface InitConfig {
   /** APP api服务器配置 */
-  apiConfig?: { channel: string; apiServer?: string; isUniapp: boolean }
+  apiConfig?: { apiServer?: string; isUniapp?: boolean }
   /** 默认请求配置 */
   defRequestConfig?: Omit<RequestConfig, 'url' | 'baseURL' | 'method'>
   /** loading 组件服务 */
   loadingServe?: LoadingServe
 }
-export function init({ apiConfig, loadingServe, defRequestConfig }: InitConfig = {}) {
+/**
+ * 初始化数据服务
+ * @param adapter 请求模块 axios
+ * @param config -{ apiConfig, defRequestConfig, loadingServe }
+ */
+export function serviceInit(adapter: Parameters<typeof Http.setAdapter>[0], { apiConfig, loadingServe, defRequestConfig }: InitConfig = {}) {
+  Http.setAdapter(adapter)
+  
   if (apiConfig) {
     setApiConfig(apiConfig)
   }

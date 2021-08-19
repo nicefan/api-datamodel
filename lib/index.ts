@@ -16,4 +16,4 @@ export { default as BaseInfo, infoFactory } from './BaseInfo'
  */
 export { default as BaseList, pagesFactory } from './BaseList'
 
-export { setAdapter, setDefRequestConfig, setLoadingServe, setApiConfig } from './service'
+export { serviceInit, setDefRequestConfig, setLoadingServe, setApiConfig } from './service'
