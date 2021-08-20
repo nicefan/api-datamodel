@@ -1,11 +1,3 @@
-/*
- * @Description:
- * @Autor: 范阳峰
- * @Date: 2020-07-06 10:28:56
- * @LastEditors: 范阳峰
- * @LastEditTime: 2021-08-17 23:00:12
- */
-
 import taskStack from './taskStack'
 import isPlainObject from 'lodash/isPlainObject'
 

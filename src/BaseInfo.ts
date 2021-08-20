@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-empty-function */
 import cloneDeep from 'lodash/cloneDeep'
 import pick from 'lodash/pick'
-// import isPlainObject from 'lodash/isPlainObject'
 import Resource from './Resource';
-import { pagesFactory } from './BaseList'
+import { pagesExtend } from './BaseList'
 
 
 /**
@@ -20,7 +18,7 @@ export type Ibase<T extends Base, D> = {
 
 /** 创建一个基于当前实体类的分页列表类 */
 function makePagesClass<Para = Obj, T = Obj>(this: Cls<T>, method?: Fn<Promise<PagesResult>>) {
-  return pagesFactory<Para, T>(method || this.prototype.res, this)
+  return pagesExtend<Para, T>(method || this.prototype.res, this)
 }
 /** 快速创建一个分页数据列表实例 */
 function createPages<Para = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?: Fn<Promise<PagesResult>>) {
@@ -28,7 +26,7 @@ function createPages<Para = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?:
 }
 
 abstract class Base {
-  static extend = infoFactory
+  static extend = infoExtend
 
   static makePagesClass = makePagesClass
   static createPages = createPages
@@ -187,7 +185,7 @@ export declare class Info extends Base {
   protected get defaultProps(): Obj
 }
 
-function infoFactory<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) {
+function infoExtend<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) {
   const _defaultData = new DefaultData()
   const _res = typeof res === 'string' ? new Resource(res) : res
   class _Info extends Base {
@@ -205,5 +203,5 @@ function infoFactory<I, R extends Resource>(DefaultData: Cls<I>, res?: R | strin
   // return decorator(Info, _defaultData)
 }
 
-export { infoFactory }
+export { infoExtend }
 export default Base

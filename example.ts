@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import Resource from './lib/Resource'
-import BaseInfo, { infoFactory } from './lib/BaseInfo'
-import { pagesFactory } from './lib/BaseList'
+import Resource from './src/Resource'
+import BaseInfo, { infoExtend } from './src/BaseInfo'
+import { pagesExtend} from './src/BaseList'
 
 const res = new Resource('user')
 
@@ -16,15 +16,16 @@ class Def {
 class Info extends BaseInfo.extend(Def, res) {
   // 其它属性方法
 }
+const dc = Info.createPages()
 /** 别名infoFactory等同于BaseInfo.extend */
-class InfoEx2 extends infoFactory(Def, res) {}
+class InfoEx2 extends infoExtend(Def, res) {}
 /** 快速创建，不需要扩展 */
-const InfoEx = infoFactory(Def, res)
+const InfoEx = infoExtend(Def, res)
 // const info = new Info()
 // info.age=20
 
 /** 直接通过请求路径创建，无需另外创建Resource */
-class User extends infoFactory(Def, 'user') {}
+class User extends infoExtend(Def, 'user') {}
 const user = new User()
 user.realName = 'joe'
 

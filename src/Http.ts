@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import MessageHandle from './utils/messageHandle'
 import merge from 'lodash/merge'
 
@@ -23,9 +21,6 @@ class Http {
     return data
   }
 
-  // protected setInterceptor(fn: Fn) {
-  //   this.interceptorResolve = fn
-  // }
 
   /** 请求返回后可用于处理消息提示 */
   setMessage!: MessageHandle['setMessage']
@@ -34,9 +29,6 @@ class Http {
     config && this.setDefault(config)
   }
 
-  // create(config?: RequestConfig) {
-  //   return new Http(config)
-  // }
 
   setDefault(config: RequestConfig) {
     merge(this.defaultConfig, config)
@@ -130,8 +122,6 @@ function saveFile(res: any, filename = '') {
   document.body.removeChild(downloadElement) // 下载完成移除元素
   window.URL.revokeObjectURL(href) // 释放掉blob对象
 }
-
-// export const http = new Http()
 
 /** 通用实例，新实例使用create方法 */
 export default Http

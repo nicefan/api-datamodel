@@ -1,7 +1,5 @@
 import Resource from './Resource'
 
-type ItemContructor<T> = new (...arg: any[]) => T
-type RequestMethod = (param: Obj) => Promise<any>
 type Interceptor = (method: Fn<Promise<any>>, Params: Obj, res?: Resource) => Promise<PagesResult>
 let _interceptor: undefined | Interceptor
 /**
@@ -12,7 +10,7 @@ export default abstract class List<P extends Obj = Obj, T = any> {
     _interceptor = func
   }
   /** 集合类型构造器 */
-  protected get _ItemConstructor(): void | ItemContructor<T> {
+  protected get _ItemConstructor(): void | Cls<T> {
     return undefined
   }
   /** 请求方法定义 */
@@ -23,7 +21,7 @@ export default abstract class List<P extends Obj = Obj, T = any> {
   /** 保存用户查询参数 */
   protected _param?: Obj
 
-  #pageParam: { current?: number; size?: number } = {}
+  private pageParam: { current?: number; size?: number } = {}
 
   records: T[] = []
   /** 当前页 */
@@ -35,7 +33,7 @@ export default abstract class List<P extends Obj = Obj, T = any> {
   /** 总条数 */
   total = 0
   /** 加载更多状态 */
-  #status?: 'more' | 'noMore' | 'loading'
+  private _status?: 'more' | 'noMore' | 'loading'
 
   constructor(param?: any) {
     if (param) {
@@ -44,48 +42,42 @@ export default abstract class List<P extends Obj = Obj, T = any> {
   }
 
   protected request() {
-    this.#status = 'loading'
-    const param = { ...this._defaultParam, ...this._param, page: this.#pageParam }
+    this._status = 'loading'
+    const param = { ...this._defaultParam, ...this._param, page: this.pageParam }
     return this._requestMethod(param).then((result) => {
       return this.update(result)
     })
   }
 
   get status() {
-    return this.#status
+    return this._status
   }
 
   setDefaultParam({ size, ...param }: { size?: number } & P) {
     this._defaultParam = { ...this._defaultParam, ...param }
-    if (size) this.#pageParam.size = size
+    if (size) this.pageParam.size = size
   }
 
   /** 查询请求数据 */
   query(param?: P) {
-    delete this.#pageParam.current
+    delete this.pageParam.current
     this._param = param && { ...param }
     return this.request().catch((e) => {
       this.records = []
       this.current = 1
       this.total = 0
-      this.#status = 'noMore'
+      this._status = 'noMore'
       return Promise.reject(e)
     })
   }
 
-  /** 设置查询请求resource方法 */
-  // setResMethod(method: RequestType<P>) {
-  //   this._requestMethod = method
-  // }
-
   /** 设置每页条数, 重新计算当前页码并查询 */
   setSize(size: number) {
     const page = Math.ceil(((this.current - 1) * this.pageSize) / size) + 1
-    this.#pageParam = {
+    this.pageParam = {
       size,
       current: page,
     }
-    // this._defaultParam = { ...this._defaultParam, pageSize: value }
     return this.request()
   }
 
@@ -95,24 +87,19 @@ export default abstract class List<P extends Obj = Obj, T = any> {
     this.pageCount = pageCount
     this.pageSize = pageSize
     this.total = total
-    this.#status = current < pageCount ? 'more' : 'noMore'
+    this._status = current < pageCount ? 'more' : 'noMore'
     this.records = !this._ItemConstructor ? records : records.map((item: Obj) => new (this._ItemConstructor as Cls<T>)(item))
     return this.records
   }
 
-  /** 清除查询条件重新查询 */
-  // async reset() {
-  //   this.param = undefined
-  //   return this.query()
-  // }
-  reload() {
+  refresh() {
     this.request()
   }
 
   /** 获取指定页码数据 */
   async goPage(page: number) {
     page = page < 1 ? 1 : page > this.pageCount ? this.pageCount : page
-    this.#pageParam.current = page
+    this.pageParam.current = page
     return this.request()
   }
 
@@ -145,10 +132,8 @@ export type Pages<P, I> = typeof _P & {
  * @param res 包含有getPageList方法的数据资源对象 或者指定查询请求方法
  * @param Info （可选）指定数据集合的实体类
  */
-export function pagesFactory<Para = Obj, I = Obj>(res: Obj | RequestMethod, Info?: ItemContructor<I>) {
+export function pagesExtend<Para = Obj, I = Obj>(res: Obj | Fn<Promise<any>>, Info?: Cls<I>) {
   const _requestMethod = typeof res === 'function' ? res : res.getPageList.bind(res)
-  const ind = (param?: Obj) => {
-  }
   class _Pages extends List<Para, I> {
     get _ItemConstructor() {
       return Info
@@ -160,17 +145,3 @@ export function pagesFactory<Para = Obj, I = Obj>(res: Obj | RequestMethod, Info
   }
   return _Pages as unknown as Pages<Para, I>
 }
-
-// export function listFactory<T = Obj>(res: Resource, Info?: ItemContructor<T>) {
-//   class Super<Q = Obj> extends List<Q, T> {
-//     protected _requestMethod(param: Obj) {
-//       return res.getList(param).then(({ list }) => ({
-//         records: list,
-//         total: list.length,
-//         size: 0,
-//       }))
-//     }
-//   }
-//   Reflect.defineProperty(Super.prototype, '_ItemConstructor', { value: Info })
-//   return Super
-// }

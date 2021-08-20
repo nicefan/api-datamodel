@@ -7,14 +7,6 @@ type Dict = {
 // 用户数据缓存
 const dicts: Obj<DictResult> = {}
 
-/** 异步获取字典 */
-// export function getDict<T extends string>(type: T): Promise<Dict[]> {
-//   if (dicts[type]) {
-//     return Promise.resolve(dicts[type].list)
-//   }
-//   return new DictResult(type).promise
-// }
-
 /** 同步获取字典,返回一个可响应的字典对象 */
 export function getDict(type: string, request: Fn<Promise<any>>) {
   const dict = dicts[type]
@@ -27,42 +19,37 @@ export function getDict(type: string, request: Fn<Promise<any>>) {
   }
 }
 
-// function query(type: string) {
-//   return commonApi.getDict(type).then((data: Obj<string>[]) => {
-//     return data.map(({ value, label }) => Object.freeze({ id: value, value, label }))
-//   })
-// }
-
 export class DictResult {
   list: Dict[] = []
   typeName: string
-  #map?: Obj
-  #status: 'ready'|'pending'|'loaded' = 'ready'
+  private _map?: Obj
+  private _status: 'ready'|'pending'|'loaded' = 'ready'
   promise: Promise<Dict[]>
-  get status() {
-    return this.#status
-  }
+
   constructor(type: string, request: Fn<Promise<any>>) {
     this.typeName = type
     dicts[type] = this
     this.promise = this.load(request)
   }
   load(request: Fn<Promise<any>>) {
-    this.#status = 'pending'
+    this._status = 'pending'
     return request().then((dict) => {
-      this.#status = 'loaded'
+      this._status = 'loaded'
       return (this.list = dict || [])
-    },() => (this.#status = 'ready'))
+    },() => (this._status = 'ready'))
+  }
+  get status() {
+    return this._status
   }
   get map() {
-    if (!this.#map && this.list.length > 0) {
+    if (!this._map && this.list.length > 0) {
       const map: Obj = {}
       for (const { value, label } of this.list) {
         map[value] = label
       }
-      this.#map = Object.freeze(map)
+      this._map = Object.freeze(map)
     }
-    return this.#map || {}
+    return this._map || {}
   }
 
   get value() {
@@ -73,7 +60,4 @@ export class DictResult {
     this.promise.then(callback)
   }
 
-  private toString() {
-    return this.list
-  }
 }

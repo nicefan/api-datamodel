@@ -1,18 +1,19 @@
 {
-  "name": "@nicefan/data-model",
-  "version": "0.1.0",
-  "author": {"name": "nicefan", "email": "covien@msn.com"},
+  "name": "api-datamodel",
+  "version": "0.1.3",
+  "author": {
+    "name": "nicefan",
+    "email": "covien@msn.com"
+  },
   "files": [
-    "dist"
+    "dist",
+    "index.d.ts"
   ],
-  "types": "./dist/index.d.ts",
-  "main": "./lib/index.ts",
-  "module": "./dist/data-model.es.js",
-
+  "main": "./dist/index.js",
+  "types": "./index.d.ts",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "serve": "vite preview"
+    "rollup": "rollup -c",
+    "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
     "lodash": "^4.17.21"
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@types/lodash": "^4.14.172",
     "@types/node": "^16.6.1",
+    "rollup-plugin-terser": "^7.0.2",
     "rollup-plugin-typescript2": "^0.30.0",
     "tsc": "^2.0.3",
     "typescript": "^4.3.5",

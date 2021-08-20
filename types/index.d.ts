@@ -3,7 +3,7 @@
  * @Autor: 范阳峰
  * @Date: 2020-07-06 17:17:59
  * @LastEditors: 范阳峰
- * @LastEditTime: 2021-08-19 17:23:44
+ * @LastEditTime: 2021-08-20 09:55:46
  */
 type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
 
@@ -47,24 +47,7 @@ interface RequestConfig {
   /** 指定下载时保存的文件名 */
   filename?: string
 }
-/** 平台初始化 */
-interface InitConfig {
-  /** 请求返回token失效时的处理 */
-  onTokenInvalid?: () => void
-  /** 默认请求配置 */
-  defRequestConfig?: Omit<RequestConfig, 'url' | 'baseURL' | 'method'>
-  /** loading 组件服务 */
-  loadingServe?: LoadingServe
-}
 
-/** loading服务 */
-interface LoadingServe {
-  show(): void
-  /** 结束loading,并处理状态消息 */
-  close(data?: MessageData): void
-  /** 处理请求结果及消息显示 */
-  showMessage?(config: any): void
-}
 /** uni-app 上传文件的请求参数 */
 interface UniFormData {
   /** 要上传文件资源的路径。 */

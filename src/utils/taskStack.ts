@@ -1,12 +1,4 @@
-/*
- * @Description: 请求任务堆栈控制loading显示及消息通知
- * @Autor: 范阳峰
- * @Date: 2020-07-09 18:18:37
- * @LastEditors: 范阳峰
- * @LastEditTime: 2021-08-17 22:25:29
- */
-
-import service from '../service'
+import {getLoadingServe} from '../service'
 
 let state: 'ready' | 'pending' | 'loading' = 'ready'
 /** pending请求次数 */
@@ -17,7 +9,7 @@ let timeout:NodeJS.Timeout
 let showTimeout:NodeJS.Timeout
 let msgData: MessageData | undefined
 
-const LoadingServe = service.getLoadingServe
+const LoadingServe = getLoadingServe
 /**
  * 开始一个请求加入列队
  * @param {boolean} immed 不做延时，立即显示

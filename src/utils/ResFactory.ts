@@ -16,25 +16,17 @@ function mixins(instance: Obj, methods: Obj = {}) {
   }
 }
 
-export function create<R, T extends Obj>(this: new (...arg: any) => R, param: string, methods?: ParamMothods<T, R>) {
-  let path = ''
-
-  if (typeof param === 'string') {
-    path = param
-  } else {
-    methods = param
-  }
-
-  const res = new this(path)
+export function create<R, T extends Obj>(this: new (...arg: any) => R, param: string| RequestConfig, methods?: ParamMothods<T, R>) {
+  const res = new this(param)
   mixins(res, methods)
 
   return res as MixTypes<T> & R
 }
 
-type BindCreate<C> = <T extends Obj>(param: string, methods?: ParamMothods<T, C>) => MixTypes<T> & C
-export default function resFactory<R>(Res: new (...arg: any) => R) {
+type BindCreate<C> = <T extends Obj>(param: string|RequestConfig, methods?: ParamMothods<T, C>) => MixTypes<T> & C
+export default function factory<R>(this: new (...arg: any) => R) {
+  const _this = this
   return function (...args) {
-    return create.apply(Res, args)
+    return create.apply(_this, args)
   } as BindCreate<R>
-  // return create
 }
