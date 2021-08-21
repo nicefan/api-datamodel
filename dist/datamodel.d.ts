@@ -3,7 +3,7 @@
  * @Autor: 范阳峰
  * @Date: 2020-07-06 17:17:59
  * @LastEditors: 范阳峰
- * @LastEditTime: 2021-08-20 22:21:29
+ * @LastEditTime: 2021-08-21 15:58:54
  */
 type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
 
@@ -76,6 +76,7 @@ interface PagesResult {
   records: Obj[]
 }
 export declare class Http {
+    static setAdapter(adapter: Adapter): void;
     protected defaultConfig: RequestConfig;
     /** 请求数据拦截，在子类实现 */
     protected interceptorResolve(data: any): any;
@@ -97,7 +98,7 @@ declare type MixTypes<T> = {
 };
 declare type ResCreate = <R, T extends Obj>(this: new (...arg: any) => R, param: string|RequestConfig, methods?: ParamMothods<T, R>)=> MixTypes<T> & R;
 declare type BindCreate<C> = <T extends Obj>(param: string|RequestConfig, methods?: ParamMothods<T, C>) => MixTypes<T> & C;
-declare type ResFactory = <R>(Res: new (...arg: any) => R)=> BindCreate<R>;
+declare type ResFactory = <R>(this: new (...arg: any) => R)=> BindCreate<R>;
 
 // declare type ItemContructor<T> = new (...arg: any[]) => T;
 // declare type RequestMethod = (param: Obj) => Promise<any>;
@@ -210,10 +211,11 @@ declare abstract class Base {
     /** 获取基础属性的标准对象 */
     getObject(): Pick<Obj<any>, string>;
 }
-declare class Info extends Base {
+declare class Info<R extends Resource> extends Base {
     protected get defaultProps(): Obj;
+    protected get res(): R
 }
-export declare function infoExtend<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string): Ibase<Info, I> & { api: R };
+export declare function infoExtend<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string): Ibase<Info<R>, I> & { api: R };
 
 declare class Resource extends Http {
     protected basePath: string;
@@ -238,11 +240,11 @@ declare class Resource extends Http {
     downloadFile(apiName: string, config?: RequestConfig): Promise<any>;
     getFile(apiName: string, param?: Obj, filename?: string): Promise<any>;
     /** 创建一个数据实体类 */
-    makeInfoClass<T>(Def: Cls<T>): Ibase<Info, T>;
+    makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>): Ibase<Info<R>, T>;
     /** 创建一个分页列表类 */
     makePagesClass<T, Qu = Obj>(Info?: Cls<T>, methodName?: string): Pages<Qu, T>;
     /** 快速创建一个无类型分页数据列表实例 */
-    createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: (param?: Obj<any> | undefined) => Promise<PagesResult>, Item?: Cls<T>): Pages<Param, T>;
+    createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: (param?: Obj<any> | undefined) => Promise<PagesResult>, Item?: Cls<T>): _P<Param, T>;
 }
 export declare const createApi: BindCreate<Resource>
 declare type Dict = {
@@ -251,18 +253,22 @@ declare type Dict = {
     value: string;
 };
 
-/** 同步获取字典,返回一个可响应的字典对象 */
-export declare function getDict(type: string, request: Fn<Promise<any>>): Promise<any> | DictResult;
-export declare class DictResult {
-    list: Dict[];
-    typeName: string;
-    promise: Promise<Dict[]>;
-    get status(): "pending" | "ready" | "loaded";
-    constructor(type: string, request: Fn<Promise<any>>);
+/** 返回请求并缓存的数据 */
+export declare function getDataCache<T extends Obj = Obj>(type: string, request: Fn<Promise<any>>): CacheResult<T>;
+declare class CacheResult<T extends Obj = Obj> {
+    name: string;
+    private _key?;
+    list: T[];
+    private _map?;
+    private _status;
+    private _dataType?;
+    promise: Promise<T[]>;
+    constructor(name: string, request: Fn<Promise<any>>, _key?: string | undefined);
     load(request: Fn<Promise<any>>): Promise<any>;
-    get map(): Obj<any>;
-    get value(): Dict[];
-    then(callback: (value: Dict[]) => any): void;
+    get status(): "pending" | "ready" | "loaded";
+    get map(): Record<string, any>;
+    get value(): T[];
+    then(callback: (value: T[]) => any): void;
 }
 
 interface Adapter {
@@ -295,6 +301,8 @@ export declare function setDefRequestConfig(config: DefaultRequestConfig): void;
 export declare function setLoadingServe(loadingServe: LoadingServe): void;
 
 export declare function serviceInit(adapter: Adapter, initConfig?: InitConfig): void;
+
+
 export {
     List as BaseList,
     Base as BaseInfo,

@@ -4,15 +4,15 @@ import Resource from './Resource';
 
 interface ApiConfig {
   /** 服务地址,http开头，后面不要加'/' */
-  server: string
+  server?: string
   /** 请求前缀 */
-  rootPath: string
+  rootPath?: string
 }
 const _apiConfig = {
   server: '',
   rootPath: '/api',
 }
-export function setApiConfig({server, rootPath}: ApiConfig) {
+export function setApiConfig({server='', rootPath=''}: ApiConfig) {
   Object.assign(_apiConfig, {server, rootPath})
   Resource.rootPath = server + rootPath
 }

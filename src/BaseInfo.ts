@@ -181,8 +181,9 @@ function decorator<T extends Base, D extends Obj>(target: Cls<T>, defaultProps: 
   return target as Ibase<T, D>
 }
 
-export declare class Info extends Base {
+export declare class Info<R extends Resource> extends Base {
   protected get defaultProps(): Obj
+  protected get res(): R
 }
 
 function infoExtend<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) {
@@ -199,7 +200,7 @@ function infoExtend<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string
       return _res || super.res
     }
   }
-  return (_Info as unknown) as Ibase<Info, I> & { api: R }
+  return (_Info as unknown) as Ibase<Info<R>, I> & { api: R }
   // return decorator(Info, _defaultData)
 }
 

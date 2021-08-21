@@ -3,7 +3,10 @@ import { terser } from 'rollup-plugin-terser';
 export default {
   // input 是打包入口文件路径
   // input: 'src/uniRequest.ts',
-  input: ['src/index.ts', 'src/uniRequest.ts'],
+  input: {
+    datamodel: 'src/index.ts',
+    uniRequest: 'src/uniRequest.ts'
+  },
   // 输出配置
   output: [{
     // 输出路径及文件名

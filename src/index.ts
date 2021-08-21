@@ -22,4 +22,4 @@ export { default as BaseInfo, infoExtend } from './BaseInfo'
 export { default as BaseList, pagesExtend } from './BaseList'
 
 export { serviceInit, setDefRequestConfig, setLoadingServe, setApiConfig } from './service'
-export { getDict } from './getDict'
+export { getDataCache } from './dataCache'
