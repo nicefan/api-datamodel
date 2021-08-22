@@ -10,19 +10,6 @@ export default class Handle {
     if (showLoading) taskStack.start()
   }
 
-  proxy(request: Promise<any>) {
-    const _promise = request.then(
-      (res) => this.setup(res),
-      (err) => this.setup(err)
-    )
-
-    return _promise
-    // 使用代理模式，通过用户在promise接收数据后，使用return返回消息
-    // const interceptor = ProxyPromise(_promise)
-    // interceptor.result(this.send)
-    // return interceptor
-  }
-
   private isInit = false
 
   setup(data: any) {

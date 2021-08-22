@@ -1,5 +1,7 @@
-declare const uniRequest: {
+/// <reference types="../types" />
+
+declare const _default: {
     name: 'uni';
-    request(requestConfig: Record<string,any>): Promise<any>;
+    request(requestConfig: RequestConfig): Promise<any>;
 };
-export default uniRequest;
+export default _default;

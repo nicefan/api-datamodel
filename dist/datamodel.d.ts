@@ -3,50 +3,10 @@
  * @Autor: 范阳峰
  * @Date: 2020-07-06 17:17:59
  * @LastEditors: 范阳峰
- * @LastEditTime: 2021-08-21 15:58:54
+ * @LastEditTime: 2021-08-22 17:29:56
  */
-type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
 
-type HttpResponseType = 'arraybuffer' | 'blob' | 'document' | 'json' | 'text' | 'stream'
-
-type Obj<T = any> = Record<string, T>
-type Cls<T = any> = new (...args: any[]) => T
-type Fn<T = any> = (...args: any) => T
-interface MessageData {
-  code?: number | string
-  message?: string
-  /** 消息类型 */
-  type?: 'success' | 'warning' | 'info' | 'error'
-}
-
-interface RequestConfig {
-  /** 用于请求的服务器 URL */
-  url?: string
-  /** 创建请求时使用的方法, 默认"GET" */
-  method?: HttpMethod
-  baseURL?: string
-  // transformRequest?: AxiosTransformer | AxiosTransformer[];
-  // transformResponse?: AxiosTransformer | AxiosTransformer[];
-  /** 被发送的自定义请求头 */
-  headers?: any
-  /** 与请求一起发送的 URL 参数 */
-  params?: Record<string, unknown>
-  /** URL参数序列化的函数 */
-  // paramsSerializer?: (params: any) => string;
-  data?: any
-  timeout?: number
-  /** 跨域请求时是否需要使用凭证 */
-  withCredentials?: boolean
-  /** 服务器响应的数据类型，默认"json" */
-  responseType?: HttpResponseType
-  onUploadProgress?: (progressEvent: any) => void
-  onDownloadProgress?: (progressEvent: any) => void
-  // maxContentLength?: number;
-  /** 不显示loading等待框 */
-  loading?: false
-  /** 指定下载时保存的文件名 */
-  filename?: string
-}
+/// <reference types="../types" />
 
 /** loading服务 */
 interface LoadingServe {
@@ -62,19 +22,7 @@ interface UniFormData {
   fileKey: string
   [key: string]: any
 }
-/** 分页接口数据类型 */
-interface PagesResult {
-  /** 当前页 */
-  current: number
-  /** 总页数 */
-  pageCount: number
-  /** 分页大小 */
-  pageSize: number
-  /** 总记录数 */
-  total: number
-  /** 数据记录 */
-  records: Obj[]
-}
+
 export declare class Http {
     static setAdapter(adapter: Adapter): void;
     protected defaultConfig: RequestConfig;
@@ -247,14 +195,9 @@ declare class Resource extends Http {
     createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: (param?: Obj<any> | undefined) => Promise<PagesResult>, Item?: Cls<T>): _P<Param, T>;
 }
 export declare const createApi: BindCreate<Resource>
-declare type Dict = {
-    id: string;
-    label: string;
-    value: string;
-};
 
 /** 返回请求并缓存的数据 */
-export declare function getDataCache<T extends Obj = Obj>(type: string, request: Fn<Promise<any>>): CacheResult<T>;
+export declare function getDataCache<T extends Obj = Obj>(name: string, request: Fn<Promise<any>>, keyField?: string): CacheResult<T>;
 declare class CacheResult<T extends Obj = Obj> {
     name: string;
     private _key?;

@@ -16,10 +16,10 @@ export default abstract class List<P extends Obj = Obj, T = any> {
   /** 请求方法定义 */
   protected abstract _requestMethod(arg0?: Obj): Promise<any>
   /** 默认请求参数 */
-  protected _defaultParam?: Obj
+  protected _defaultParam?: Obj ={}
 
   /** 保存用户查询参数 */
-  protected _param?: Obj
+  protected _param?: Obj = {}
 
   private pageParam: { current?: number; size?: number } = {}
 
@@ -97,7 +97,7 @@ export default abstract class List<P extends Obj = Obj, T = any> {
   }
 
   /** 获取指定页码数据 */
-  async goPage(page: number) {
+  goPage(page: number) {
     page = page < 1 ? 1 : page > this.pageCount ? this.pageCount : page
     this.pageParam.current = page
     return this.request()
@@ -109,18 +109,19 @@ export default abstract class List<P extends Obj = Obj, T = any> {
   }
 
   /** 加载下一页数据  */
-  async loadMore() {
+  loadMore() {
     if (this.current < this.pageCount) {
       const data = this.records
-      const records = await this.goPage(this.current + 1)
-      this.records = data.concat(records)
+      return this.goPage(this.current + 1).then(records => {
+        this.records = data.concat(records)
+      })
     } else {
       return Promise.reject({ message: '已经是最后一页' })
     }
   }
 }
 
-export declare class _P<P,I> extends List<P,I> {
+export declare class _P<P,I = Obj> extends List<P,I> {
   protected _requestMethod(arg0?: Obj): Promise<any>
 }
 

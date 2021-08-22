@@ -48,12 +48,12 @@ interface QueryParam {
 }
 
 /** 继承扩展类 */
-class Pagess extends pagesFactory(res, Info) { }
+class Pagess extends pagesExtend(res, Info) { }
 const ax = new Pagess()
 
 
 /** 快速创建，不需要扩展 */
-const PagesEx = pagesFactory<QueryParam, Info>(res, Info)
+const PagesEx = pagesExtend<QueryParam, Info>(res, Info)
 const page = new PagesEx()
 page.query({ status: '2' })
 
@@ -68,19 +68,19 @@ const PagesRes2 = res.makePagesClass(Info)
 
 /** 实体类创建，不指定查询条件类型时，可省略<> */
 const PagesInfo = Info.makePagesClass()
-const PagesInfo2 = Info.makePagesClass<QueryParam, Info>(res.getList)
+const PagesInfo2 = Info.makePagesClass<QueryParam, Info>(res.getPageList)
 
 /** 不使用实体 */
-const PagesSl = pagesFactory<QueryParam>(res)
+const PagesSl = pagesExtend<QueryParam>(res)
 
 /** 工厂方法创建实例 */
 function createPages(defParam: Obj) {
-  return new (pagesFactory(res.getPageList, Info))(defParam)
+  return new (pagesExtend(res.getPageList, Info))(defParam)
 }
 
 // 可在业务中直接使用，如需要定义查询条件类型或查询方法，需要再写个包装方法
 const pages2Info = Info.createPages()
 const pages2Res = res.createPagesInstance()
 function getPages(defParam: Obj) {
-  return Info.createPages<QueryParam, Info>(defParam, res.getList)
+  return Info.createPages<QueryParam, Info>(defParam, res.getPageList)
 }

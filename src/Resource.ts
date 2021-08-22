@@ -1,15 +1,14 @@
 import Http from './Http'
 import factory, { create } from './utils/ResFactory'
-import {getApiConfig, getDefRequestConfig} from './service'
+import { getDefRequestConfig} from './service'
 import merge from 'lodash/merge'
 import { pagesExtend } from './BaseList'
 import {infoExtend} from './BaseInfo'
-const {server, rootPath} = getApiConfig()
 class Resource extends Http {
   /** 工厂模式快速创建实例 */
   static create = create
   static factory = factory
-  static rootPath = server + rootPath
+  static rootPath =''
   /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
   protected basePath = ''
 

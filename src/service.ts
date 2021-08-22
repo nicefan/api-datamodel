@@ -8,17 +8,15 @@ interface ApiConfig {
   /** 请求前缀 */
   rootPath?: string
 }
-const _apiConfig = {
-  server: '',
-  rootPath: '/api',
-}
+const _apiConfig = {}
 export function setApiConfig({server='', rootPath=''}: ApiConfig) {
   Object.assign(_apiConfig, {server, rootPath})
   Resource.rootPath = server + rootPath
 }
-export function getApiConfig() {
+export function getApiConfig():ApiConfig {
   return _apiConfig
 }
+setApiConfig({ rootPath: '/api' })
 
 type DefaultRequestConfig = Partial<Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'loading'>>
 

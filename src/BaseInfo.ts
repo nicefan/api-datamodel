@@ -56,16 +56,16 @@ abstract class Base {
 
   private initProps() {
     // 解决小程序无法读取原型链上get属性的问题
-    // const proto1 = Reflect.getPrototypeOf(this)
-    // if (proto1) {
-    //   const names = Object.getOwnPropertyNames(proto1)
-    //   for (const key of names) {
-    //     const descriptor = Reflect.getOwnPropertyDescriptor(proto1, key)
-    //     if (descriptor?.get) {
-    //       Object.defineProperty(this, key, { ...descriptor, enumerable: true })
-    //     }
-    //   }
-    // }
+    const proto1 = Reflect.getPrototypeOf(this)
+    if (proto1) {
+      const names = Object.getOwnPropertyNames(proto1)
+      for (const key of names) {
+        const descriptor = Reflect.getOwnPropertyDescriptor(proto1, key)
+        if (descriptor?.get) {
+          Object.defineProperty(this, key, { ...descriptor, enumerable: true })
+        }
+      }
+    }
     // 扩展基础属性
     for (const key of Object.keys(this.defaultProps)) {
       Object.defineProperty(this, key, {
@@ -110,28 +110,13 @@ abstract class Base {
   }
 
   /** 实例构造时传的id,将调用此方法加载数据， */
-  async load(id: string) {
-    const result = await this.res.get(id)
-    const data = this.onLoadAfter(result) || result
-    this.reset(data)
-    return data
+  load(id: string) {
+    return this.res.get(id).then(result => {
+      const data = this.onLoadAfter(result) || result
+      this.reset(data)
+      return data
+    })
   }
-
-  /** 删除id */
-  // protected async delete() {
-  //   const id = this._data.id
-  //   return await this.res?.delete(id)
-  // }
-
-  // protected async save() {
-  //   return await this.res?.save(this.getObject())
-  // }
-
-  // async update(newData: Obj) {
-  //   const result = await this.res.save({ ...newData, oldRequestData: this.getObject() })
-  //   this.reset(newData)
-  //   return result
-  // }
 
   /** 克隆实体类 */
   clone() {
