@@ -1,5 +1,5 @@
 /*!
-  * api-datamodel v0.1.7
+  * api-datamodel v0.1.8
   * (c) 2021 范阳峰 covien@msn.com
   * @license MIT
   */
@@ -276,7 +276,7 @@ function factory() {
 
 let _interceptor;
 /**
- * 列表抽象类 <参数类型定义>
+ * 分页列表类 <参数类型定义>
  */
 class List {
     constructor(param) {
@@ -304,6 +304,10 @@ class List {
     /** 集合类型构造器 */
     get _ItemConstructor() {
         return undefined;
+    }
+    /** 请求方法定义 */
+    _requestMethod(arg0) {
+        return Promise.reject('request method not found!');
     }
     request() {
         this._status = 'loading';
@@ -416,9 +420,11 @@ class Base {
             this.reset(data);
         }
     }
+    /** 实例默认属性值，必须通过子类实现 */
+    get defaultProps() { return {}; }
     /** 实例请求操作源，可在子类继承实现 */
     get res() {
-        throw new TypeError('未指定请求方法');
+        throw Resource.ERROR;
     }
     initProps() {
         // 解决小程序无法读取原型链上get属性的问题
@@ -474,7 +480,8 @@ class Base {
     }
     /** 实例构造时传的id,将调用此方法加载数据， */
     load(id) {
-        return this.res.get(id).then(result => {
+        var _a;
+        return (_a = this.res) === null || _a === void 0 ? void 0 : _a.get(id).then(result => {
             const data = this.onLoadAfter(result) || result;
             this.reset(data);
             return data;
@@ -508,22 +515,30 @@ class Base {
     }
 }
 Base.extend = infoExtend;
+Base.createFactory = BaseFactory;
 Base.makePagesClass = makePagesClass;
 Base.createPages = createPages;
 function infoExtend(DefaultData, res) {
     const _defaultData = new DefaultData();
     const _res = typeof res === 'string' ? new Resource(res) : res;
-    class _Info extends Base {
+    const _Super = (this === null || this === void 0 ? void 0 : this.prototype.constructor) === Base ? this : Base;
+    class _Info extends _Super {
         get defaultProps() {
             return _defaultData;
         }
         get res() {
-            return _res || super.res;
+            const res = _res || super.res;
+            if (!res)
+                throw Resource.ERROR;
+            return res;
         }
     }
     _Info.api = _res;
     return _Info;
     // return decorator(Info, _defaultData)
+}
+function BaseFactory() {
+    return infoExtend.bind(this);
 }
 
 class Resource extends Http {
@@ -555,7 +570,7 @@ class Resource extends Http {
     }
     request(config) {
         const _config = merge__default['default']({}, getDefRequestConfig(), this.defaultConfig, config, {
-            baseURL: Resource.rootPath + '/' + this.basePath,
+            baseURL: this.constructor.rootPath + '/' + this.basePath,
         });
         return super.request(_config);
     }
@@ -590,6 +605,7 @@ class Resource extends Http {
 /** 工厂模式快速创建实例 */
 Resource.create = create;
 Resource.factory = factory;
+Resource.ERROR = new TypeError('Api instance undefined!');
 Resource.rootPath = '';
 const createApi = Resource.factory();
 
@@ -598,7 +614,6 @@ function setApiConfig({ server = '', rootPath = '' }) {
     Object.assign(_apiConfig, { server, rootPath });
     Resource.rootPath = server + rootPath;
 }
-setApiConfig({ rootPath: '/api' });
 const _defRequestConfig = {
     timeout: 50000,
     headers: {

@@ -3,9 +3,9 @@ import Resource from './Resource'
 type Interceptor = (method: Fn<Promise<any>>, Params: Obj, res?: Resource) => Promise<PagesResult>
 let _interceptor: undefined | Interceptor
 /**
- * 列表抽象类 <参数类型定义>
+ * 分页列表类 <参数类型定义>
  */
-export default abstract class List<P extends Obj = Obj, T = any> {
+export default class List<P extends Obj = Obj, T = any> {
   static setInterceptor(func: Interceptor) {
     _interceptor = func
   }
@@ -14,7 +14,9 @@ export default abstract class List<P extends Obj = Obj, T = any> {
     return undefined
   }
   /** 请求方法定义 */
-  protected abstract _requestMethod(arg0?: Obj): Promise<any>
+  protected _requestMethod(arg0?: Obj) {
+    return Promise.reject('request method not found!')
+  }
   /** 默认请求参数 */
   protected _defaultParam?: Obj ={}
 
@@ -121,12 +123,8 @@ export default abstract class List<P extends Obj = Obj, T = any> {
   }
 }
 
-export declare class _P<P,I = Obj> extends List<P,I> {
-  protected _requestMethod(arg0?: Obj): Promise<any>
-}
-
-export type Pages<P, I> = typeof _P & {
-    new (param?: Obj): _P<P, I>
+export type Pages<P, I> = {
+    new <Para = P>(param?: Obj): List<Para, I>
 }
 
 /** 分页查询类工厂方法

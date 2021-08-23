@@ -3,7 +3,7 @@
  * @Autor: 范阳峰
  * @Date: 2020-07-06 17:17:59
  * @LastEditors: 范阳峰
- * @LastEditTime: 2021-08-22 17:29:56
+ * @LastEditTime: 2021-08-23 12:23:39
  */
 
 /// <reference types="../types" />
@@ -45,7 +45,7 @@ declare type MixTypes<T> = {
     } : T[P];
 };
 declare type ResCreate = <R, T extends Obj>(this: new (...arg: any) => R, param: string|RequestConfig, methods?: ParamMothods<T, R>)=> MixTypes<T> & R;
-declare type BindCreate<C> = <T extends Obj>(param: string|RequestConfig, methods?: ParamMothods<T, C>) => MixTypes<T> & C;
+declare type BindCreate<R> = <T extends Obj>(param: string|RequestConfig, methods?: ParamMothods<T, R>) => MixTypes<T> & R;
 declare type ResFactory = <R>(this: new (...arg: any) => R)=> BindCreate<R>;
 
 // declare type ItemContructor<T> = new (...arg: any[]) => T;
@@ -55,13 +55,13 @@ type Interceptor = (method: Fn<Promise<any>>, Params: Obj, res?: Resource) => Pr
 /**
  * 列表抽象类 <参数类型定义>
  */
-declare abstract class List<P extends Obj = Obj, T = any> {
+declare class List<P extends Obj = Obj, T = any> {
     /** 请求拦截器，用于格式化查询条件及返回数据的数据结构 */
     static setInterceptor:(func: Interceptor) => void;
      /** 集合类型构造器 */
     protected get _ItemConstructor(): void | Cls<T>;
     /** 请求方法定义 */
-    protected abstract _requestMethod(arg0?: Obj): Promise<any>;
+    protected _requestMethod(arg0?: Obj): Promise<any>;
     /** 默认请求参数 */
     protected _defaultParam?: Obj;
     /** 保存用户查询参数 */
@@ -98,11 +98,9 @@ declare abstract class List<P extends Obj = Obj, T = any> {
     loadMore(): Promise<undefined>;
 }
 
-declare class _P<P, I> extends List<P, I> {
-    protected _requestMethod(arg0?: Obj): Promise<any>;
-}
-type Pages<P, I> = typeof _P & {
-    new(param?: Obj): _P<P, I>
+
+type Pages<P, I> = {
+    new <Para = P>(param?: P): List<Para, I>
 };
 /** 分页查询类工厂方法
  * @param res 包含有getPageList方法的数据资源对象 或者指定查询请求方法
@@ -113,26 +111,29 @@ export declare function pagesExtend<Para = Obj, I = Obj>(res: Obj | Fn<Promise<a
 /**
  * 传递对象默认属性值创建数据模型
  */
-interface Ibase<T, D> {
-    /** 通过id构建 */
-    new (id?: string): T & D;
-    /** JSON对象构建 */
-    new (data?: Partial<D>): T & D;
-    makePagesClass: typeof makePagesClass;
-    createPages: typeof createPages;
+export type Ibase<T extends typeof Base, D, R extends Obj = Resource> = {
+  /** 通过id构建 */
+  new (id?: string): InstanceType<T> & Base<R> & D
+  /** JSON对象构建 */
+  new (data?: Partial<D>): InstanceType<T> & Base<R> & D
+  makePagesClass: typeof makePagesClass
+  createPages: typeof createPages
+  api: R
 }
+
 /** 创建一个基于当前实体类的分页列表类 */
 declare function makePagesClass<Para = Obj, T = Obj>(this: Cls<T>, method?: Fn<Promise<PagesResult>>): Pages<Para, T>;
 /** 快速创建一个分页数据列表实例 */
-declare function createPages<Para = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?: Fn<Promise<PagesResult>>): _P<Para, T>;
-declare abstract class Base {
+declare function createPages<Para = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?: Fn<Promise<PagesResult>>): List<Para, T>;
+declare class Base<R extends Obj = Resource> {
     static extend: typeof infoExtend;
+    static createFactory: typeof BaseFactory;
     static makePagesClass: typeof makePagesClass;
     static createPages: typeof createPages;
     /** 实例默认属性值，必须通过子类实现 */
-    protected abstract get defaultProps(): Obj;
+    protected get defaultProps(): Obj;
     /** 实例请求操作源，可在子类继承实现 */
-    protected get res(): Resource;
+    protected get res(): R;
     /** 原始数据 */
     protected _data: Obj;
     constructor(data?: any);
@@ -159,11 +160,9 @@ declare abstract class Base {
     /** 获取基础属性的标准对象 */
     getObject(): Pick<Obj<any>, string>;
 }
-declare class Info<R extends Resource> extends Base {
-    protected get defaultProps(): Obj;
-    protected get res(): R
-}
-export declare function infoExtend<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string): Ibase<Info<R>, I> & { api: R };
+export declare function infoExtend<I, R extends Resource, T extends typeof Base>(this:T | void, DefaultData: Cls<I>, res?: R | string):Ibase<T, I, R>;
+type BindInfo<T extends typeof Base> = <I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) => Ibase<T, I, R>
+export declare function BaseFactory<T extends typeof Base>(this: T): BindInfo<T>
 
 declare class Resource extends Http {
     protected basePath: string;
@@ -188,11 +187,11 @@ declare class Resource extends Http {
     downloadFile(apiName: string, config?: RequestConfig): Promise<any>;
     getFile(apiName: string, param?: Obj, filename?: string): Promise<any>;
     /** 创建一个数据实体类 */
-    makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>): Ibase<Info<R>, T>;
+    makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>): Ibase<typeof Base, T, R>;
     /** 创建一个分页列表类 */
     makePagesClass<T, Qu = Obj>(Info?: Cls<T>, methodName?: string): Pages<Qu, T>;
     /** 快速创建一个无类型分页数据列表实例 */
-    createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: (param?: Obj<any> | undefined) => Promise<PagesResult>, Item?: Cls<T>): _P<Param, T>;
+    createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: (param?: Obj<any> | undefined) => Promise<PagesResult>, Item?: Cls<T>): List<Param, T>;
 }
 export declare const createApi: BindCreate<Resource>
 
@@ -222,9 +221,9 @@ interface Adapter {
 type DefaultRequestConfig = Partial<Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'loading'>>
 interface ApiConfig {
   /** 服务地址,http开头，后面不要加'/' */
-  server: string
+  server?: string
   /** 请求前缀 */
-  rootPath: string
+  rootPath?: string
 }
 /** 初始化 */
 interface InitConfig {

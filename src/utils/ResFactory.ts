@@ -23,7 +23,7 @@ export function create<R, T extends Obj>(this: new (...arg: any) => R, param: st
   return res as MixTypes<T> & R
 }
 
-type BindCreate<C> = <T extends Obj>(param: string|RequestConfig, methods?: ParamMothods<T, C>) => MixTypes<T> & C
+type BindCreate<R> = <T extends Obj>(param: string|RequestConfig, methods?: ParamMothods<T, R>) => MixTypes<T> & R
 export default function factory<R>(this: new (...arg: any) => R) {
   const _this = this
   return function (...args) {

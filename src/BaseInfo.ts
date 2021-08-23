@@ -3,17 +3,17 @@ import pick from 'lodash/pick'
 import Resource from './Resource';
 import { pagesExtend } from './BaseList'
 
-
 /**
  * 传递对象默认属性值创建数据模型
  */
-export type Ibase<T extends Base, D> = {
+export type Ibase<T extends typeof Base, D, R extends Obj = Resource> = {
   /** 通过id构建 */
-  new (id?: string): T & D
+  new (id?: string): InstanceType<T> & Base<R> & D
   /** JSON对象构建 */
-  new (data?: Partial<D>): T & D
+  new (data?: Partial<D>): InstanceType<T> & Base<R> & D
   makePagesClass: typeof makePagesClass
   createPages: typeof createPages
+  api: R
 }
 
 /** 创建一个基于当前实体类的分页列表类 */
@@ -25,18 +25,18 @@ function createPages<Para = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?:
   return (this.prototype.res as Resource).createPagesInstance<Para, T>(defParam, method, this)
 }
 
-abstract class Base {
+class Base<R extends Obj = Resource> {
   static extend = infoExtend
-
+  static createFactory = BaseFactory
   static makePagesClass = makePagesClass
   static createPages = createPages
 
   /** 实例默认属性值，必须通过子类实现 */
-  protected abstract get defaultProps(): Obj
+  protected get defaultProps(){ return {}}
 
   /** 实例请求操作源，可在子类继承实现 */
-  protected get res(): Resource {
-    throw new TypeError('未指定请求方法')
+  protected get res(): R {
+    throw Resource.ERROR
   }
 
   /** 原始数据 */
@@ -111,7 +111,7 @@ abstract class Base {
 
   /** 实例构造时传的id,将调用此方法加载数据， */
   load(id: string) {
-    return this.res.get(id).then(result => {
+    return this.res?.get(id).then(result => {
       const data = this.onLoadAfter(result) || result
       this.reset(data)
       return data
@@ -150,7 +150,7 @@ abstract class Base {
 }
 
 // 在原型链上添加属性
-function decorator<T extends Base, D extends Obj>(target: Cls<T>, defaultProps: D) {
+function decorator<T extends typeof Base, D extends Obj>(target: Cls<T>, defaultProps: D) {
   for (const key of Object.keys(defaultProps)) {
     Object.defineProperty(target.prototype, key, {
       enumerable: true,
@@ -166,15 +166,12 @@ function decorator<T extends Base, D extends Obj>(target: Cls<T>, defaultProps: 
   return target as Ibase<T, D>
 }
 
-export declare class Info<R extends Resource> extends Base {
-  protected get defaultProps(): Obj
-  protected get res(): R
-}
 
-function infoExtend<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) {
+function infoExtend<I, R extends Resource, T extends typeof Base>(this:T | void, DefaultData: Cls<I>, res?: R | string) {
   const _defaultData = new DefaultData()
   const _res = typeof res === 'string' ? new Resource(res) : res
-  class _Info extends Base {
+  const _Super = this?.prototype.constructor === Base ? this : Base
+  class _Info extends _Super {
     static api = _res
 
     protected get defaultProps() {
@@ -182,11 +179,18 @@ function infoExtend<I, R extends Resource>(DefaultData: Cls<I>, res?: R | string
     }
 
     get res() {
-      return _res || super.res
+      const res = _res || super.res
+      if (!res) throw Resource.ERROR
+      return res
     }
   }
-  return (_Info as unknown) as Ibase<Info<R>, I> & { api: R }
+  return (_Info as unknown) as Ibase<T, I, R>
   // return decorator(Info, _defaultData)
+}
+
+type BindInfo<T extends typeof Base> = <I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) => Ibase<T, I, R>
+function BaseFactory<T extends typeof Base>(this: T) {
+  return infoExtend.bind(this) as BindInfo<T>
 }
 
 export { infoExtend }

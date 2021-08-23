@@ -8,6 +8,7 @@ class Resource extends Http {
   /** 工厂模式快速创建实例 */
   static create = create
   static factory = factory
+  static ERROR = new TypeError('Api instance undefined!')
   static rootPath =''
   /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
   protected basePath = ''
@@ -39,7 +40,7 @@ class Resource extends Http {
 
   request(config: RequestConfig) {
     const _config = merge({}, getDefRequestConfig(), this.defaultConfig, config, {
-      baseURL: Resource.rootPath + '/' + this.basePath,
+      baseURL: (this.constructor as any).rootPath + '/' + this.basePath,
     })
     return super.request(_config)
   }
@@ -82,7 +83,7 @@ class Resource extends Http {
 
   /** 快速创建一个无类型分页数据列表实例 */
   createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method = this.getPageList, Item?: Cls<T>) {
-    return new (pagesExtend(method.bind(this), Item))<Param, T>(defParam)
+    return new (pagesExtend(method.bind(this), Item))<Param>(defParam)
   }
 }
 

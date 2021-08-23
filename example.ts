@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import Resource from './src/Resource'
+import Resource from './src/Resource';
 import BaseInfo, { infoExtend } from './src/BaseInfo'
 import { pagesExtend} from './src/BaseList'
 
@@ -25,7 +25,27 @@ const InfoEx = infoExtend(Def, res)
 // info.age=20
 
 /** 直接通过请求路径创建，无需另外创建Resource */
-class User extends infoExtend(Def, 'user') {}
+class User extends infoExtend(Def, 'user') {
+  test() {
+    this.res.delete('id')
+  }
+}
+class SubUser<Resource> extends BaseInfo<Resource> {
+  newfunc() {
+
+  }
+}
+const subFactory = SubUser.createFactory()
+
+class SSubUser extends subFactory(class { }) {
+  test() {
+    this.newfunc
+    this.res.delete
+  }
+}
+const subUser = new (SubUser.extend(Def))()
+const ssubUser = new SSubUser()
+subUser.newfunc
 const user = new User()
 user.realName = 'joe'
 

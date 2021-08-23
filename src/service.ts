@@ -16,7 +16,6 @@ export function setApiConfig({server='', rootPath=''}: ApiConfig) {
 export function getApiConfig():ApiConfig {
   return _apiConfig
 }
-setApiConfig({ rootPath: '/api' })
 
 type DefaultRequestConfig = Partial<Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'loading'>>
 
