@@ -41,6 +41,10 @@ export default class List<P extends Obj = Obj, T = any> {
     if (param) {
       this.setDefaultParam(param)
     }
+    if (this._ItemConstructor) {
+      // 初始化一个实例，保证实例中依赖的缓存数据进行初始加载
+      new this._ItemConstructor()
+    }
   }
 
   protected request() {
