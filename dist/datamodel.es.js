@@ -1,5 +1,5 @@
 /*!
-  * api-datamodel v0.1.8
+  * api-datamodel v0.1.9
   * (c) 2021 范阳峰 covien@msn.com
   * @license MIT
   */
@@ -287,6 +287,10 @@ class List {
         if (param) {
             this.setDefaultParam(param);
         }
+        if (this._ItemConstructor) {
+            // 初始化一个实例，保证实例中依赖的缓存数据进行初始加载
+            new this._ItemConstructor();
+        }
     }
     static setInterceptor(func) {
         _interceptor = func;
@@ -559,8 +563,9 @@ class Resource extends Http {
         }
     }
     request(config) {
+        const url = this.constructor.rootPath + '/' + this.basePath + '/';
         const _config = merge({}, getDefRequestConfig(), this.defaultConfig, config, {
-            baseURL: this.constructor.rootPath + '/' + this.basePath,
+            baseURL: url.replace(/\/+/g, '/'),
         });
         return super.request(_config);
     }
