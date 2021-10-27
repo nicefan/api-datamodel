@@ -3,7 +3,7 @@
  * @Autor: 范阳峰
  * @Date: 2020-07-06 17:17:59
  * @LastEditors: 范阳峰
- * @LastEditTime: 2021-08-23 12:23:39
+ * @LastEditTime: 2021-10-27 21:29:53
  */
 
 /// <reference types="../types" />
@@ -44,8 +44,11 @@ declare type MixTypes<T> = {
         (...arg: any): Promise<T[P]>;
     } : T[P];
 };
-declare type ResCreate = <R, T extends Obj>(this: new (...arg: any) => R, param: string|RequestConfig, methods?: ParamMothods<T, R>)=> MixTypes<T> & R;
-declare type BindCreate<R> = <T extends Obj>(param: string|RequestConfig, methods?: ParamMothods<T, R>) => MixTypes<T> & R;
+
+type ModuleName<T extends string> = T extends `${string}/` ? never : T
+
+declare type ResCreate = <R, S extends string, T extends Obj>(this: new (...arg: any) => R, name: ModuleName<S>, methods?: ParamMothods<T, R>)=> MixTypes<T> & R;
+declare type BindCreate<R> = <S extends string, T extends Obj>( name: ModuleName<S>, methods?: ParamMothods<T, R>) => MixTypes<T> & R;
 declare type ResFactory = <R>(this: new (...arg: any) => R)=> BindCreate<R>;
 
 // declare type ItemContructor<T> = new (...arg: any[]) => T;
@@ -164,14 +167,14 @@ export declare function infoExtend<I, R extends Resource, T extends typeof Base>
 type BindInfo<T extends typeof Base> = <I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) => Ibase<T, I, R>
 export declare function BaseFactory<T extends typeof Base>(this: T): BindInfo<T>
 
-declare class Resource extends Http {
+declare class Resource<S extends string = string> extends Http {
     protected basePath: string;
     /** 工厂模式快速创建实例 */
     static create: ResCreate;
     static factory: ResFactory;
     static rootPath: string;
 
-    constructor(config: string | RequestConfig);
+    constructor(name:ModuleName<S>, config?: RequestConfig);
     /** 定义业务请求数据处理逻辑 */
     protected interceptorResolve(response: any): any;
     request(config: RequestConfig): Promise<any>;

@@ -9,22 +9,16 @@ class Resource extends Http {
   static create = create
   static factory = factory
   static ERROR = new TypeError('Api instance undefined!')
-  static rootPath =''
+  static rootPath = ''
   /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
   protected basePath = ''
 
-  constructor(config: string | RequestConfig = '') {
+  constructor(name: string , config?: RequestConfig) {
     super()
-    let _baseUrl = ''
-    if (typeof config === 'string') {
-      _baseUrl = config
-    }
-    else {
-      const {baseURL = '', ..._config} = config
-      _baseUrl = baseURL
+    if (config) {
       this.setDefault(config)
     }
-    this.basePath = _baseUrl
+    this.basePath = name
   }
 
   /** 定义业务请求数据处理逻辑 */
@@ -39,9 +33,8 @@ class Resource extends Http {
   }
 
   request(config: RequestConfig) {
-    const url = (this.constructor as any).rootPath + '/' + this.basePath + '/'
     const _config = merge({}, getDefRequestConfig(), config, {
-      baseURL: url.replace(/\/+/g, '/'),
+      baseURL:(this.constructor as any).rootPath + this.basePath + '/'
     })
     return super.request(_config)
   }

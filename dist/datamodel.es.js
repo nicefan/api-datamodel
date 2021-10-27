@@ -1,5 +1,5 @@
 /*!
-  * api-datamodel v0.2.0
+  * api-datamodel v0.2.1
   * (c) 2021 范阳峰 covien@msn.com
   * @license MIT
   */
@@ -250,8 +250,8 @@ function mixins(instance, methods = {}) {
         Reflect.set(instance, key, method.bind(instance));
     }
 }
-function create(param, methods) {
-    const res = new this(param);
+function create(name, methods) {
+    const res = new this(name);
     mixins(res, methods);
     return res;
 }
@@ -534,20 +534,14 @@ function BaseFactory() {
 }
 
 class Resource extends Http {
-    constructor(config = '') {
+    constructor(name, config) {
         super();
         /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
         this.basePath = '';
-        let _baseUrl = '';
-        if (typeof config === 'string') {
-            _baseUrl = config;
-        }
-        else {
-            const { baseURL = '' } = config; __rest(config, ["baseURL"]);
-            _baseUrl = baseURL;
+        if (config) {
             this.setDefault(config);
         }
-        this.basePath = _baseUrl;
+        this.basePath = name;
     }
     /** 定义业务请求数据处理逻辑 */
     interceptorResolve(response) {
@@ -561,9 +555,8 @@ class Resource extends Http {
         }
     }
     request(config) {
-        const url = this.constructor.rootPath + '/' + this.basePath + '/';
         const _config = merge({}, getDefRequestConfig(), config, {
-            baseURL: url.replace(/\/+/g, '/'),
+            baseURL: this.constructor.rootPath + this.basePath + '/'
         });
         return super.request(_config);
     }
