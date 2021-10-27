@@ -40,7 +40,7 @@ class Resource extends Http {
 
   request(config: RequestConfig) {
     const url = (this.constructor as any).rootPath + '/' + this.basePath + '/'
-    const _config = merge({}, getDefRequestConfig(), this.defaultConfig, config, {
+    const _config = merge({}, getDefRequestConfig(), config, {
       baseURL: url.replace(/\/+/g, '/'),
     })
     return super.request(_config)

@@ -1,5 +1,5 @@
 /*!
-  * api-datamodel v0.1.9
+  * api-datamodel v0.2.0
   * (c) 2021 范阳峰 covien@msn.com
   * @license MIT
   */
@@ -221,9 +221,7 @@ class Http {
                 if (data.size) {
                     return window.URL.createObjectURL(data);
                 }
-                // if (data instanceof Blob) {
-                //   return window.URL.createObjectURL(data)
-                // }
+                return data;
             }
             else if (this.interceptorResolve) {
                 return this.interceptorResolve(response);
@@ -564,7 +562,7 @@ class Resource extends Http {
     }
     request(config) {
         const url = this.constructor.rootPath + '/' + this.basePath + '/';
-        const _config = merge({}, getDefRequestConfig(), this.defaultConfig, config, {
+        const _config = merge({}, getDefRequestConfig(), config, {
             baseURL: url.replace(/\/+/g, '/'),
         });
         return super.request(_config);

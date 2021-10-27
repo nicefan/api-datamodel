@@ -90,9 +90,7 @@ class Http {
         if (data.size) {
           return window.URL.createObjectURL(data)
         }
-        // if (data instanceof Blob) {
-        //   return window.URL.createObjectURL(data)
-        // }
+        return data
       } else if (this.interceptorResolve) {
         return this.interceptorResolve(response)
       }
