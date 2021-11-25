@@ -56,7 +56,7 @@ export default class Handle {
       taskStack.complete(msgData)
     } else if (msgData) {
       // 不进行loading加载的请求消息显示
-      // taskStack.showMessage(msgData)
+      taskStack.showMessage(msgData)
     }
   }
 

@@ -1,5 +1,5 @@
 /*!
-  * api-datamodel v0.2.1
+  * api-datamodel v0.2.2
   * (c) 2021 范阳峰 covien@msn.com
   * @license MIT
   */
@@ -155,6 +155,10 @@ class Handle {
         }
         if (this.showLoading) {
             taskStack.complete(msgData);
+        }
+        else if (msgData) {
+            // 不进行loading加载的请求消息显示
+            taskStack.showMessage(msgData);
         }
     }
     // 请求异常处理
