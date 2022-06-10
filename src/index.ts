@@ -22,3 +22,4 @@ export { default as BaseInfo, infoExtend } from './BaseInfo'
  */
 export { default as BaseList, pagesExtend } from './BaseList'
 
+export { buildAdapter } from './mpRequest'

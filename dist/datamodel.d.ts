@@ -31,24 +31,28 @@ export declare class Http {
     /** 请求返回后可用于处理消息提示 */
     setMessage(msgData: MessageData | string): void;
     constructor(config?: RequestConfig);
-    setDefault(config: RequestConfig): void;
-    post(url: string, data?: Obj, config?: RequestConfig): Promise<any>;
-    get(url: string, data?: Obj, config?: RequestConfig): Promise<any>;
-    put(url: string, data?: Obj, config?: RequestConfig): Promise<any>;
-    delete(url: string, data?: Obj, config?: RequestConfig): Promise<any>;
-    request({ loading, ..._config }?: RequestConfig): Promise<any>;
+    protected setDefault(config: RequestConfig): void;
+    post<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
+    get<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
+    put<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
+    delete<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
+    request<T = any>(url: string, config?: RequestConfig): Promise<T>;
 }
-declare type ParamMothods<T, R> = T & ThisType<MixTypes<T> & R>;
-declare type MixTypes<T> = {
-    [P in keyof T]: T[P] extends string ? {
-        (...arg: any): Promise<T[P]>;
-    } : T[P];
-};
+
+declare type ParamMothods<T, R> = T & ThisType<MixTypes<T, R>>
+
+declare type MixTypes<T, R> = R & {
+    [P in keyof T]: T[P] extends keyof R
+    ? R[T[P]] extends (...args: any) => infer RS
+    ? { <RE = RS>(...args: any): RE extends RS ? RS : Promise<RE> }
+    : never
+    : T[P]
+}
 
 type ModuleName<T extends string> = T extends `${string}/` ? never : T
 
-declare type ResCreate = <R, S extends string, T extends Obj>(this: new (...arg: any) => R, name: ModuleName<S>, methods?: ParamMothods<T, R>)=> MixTypes<T> & R;
-declare type BindCreate<R> = <S extends string, T extends Obj>( name: ModuleName<S>, methods?: ParamMothods<T, R>) => MixTypes<T> & R;
+declare type ResCreate = <R, S extends string, T extends Obj<keyof R> | Obj>(this: new (...arg: any) => R, name: ModuleName<S>, methods?: ParamMothods<T, R>)=> MixTypes<T, R> ;
+declare type BindCreate<R> = <S extends string, T extends Obj<keyof R> | Obj>( name: ModuleName<S>, methods?: ParamMothods<T, R>) => MixTypes<T, R>;
 declare type ResFactory = <R>(this: new (...arg: any) => R)=> BindCreate<R>;
 
 // declare type ItemContructor<T> = new (...arg: any[]) => T;
@@ -136,7 +140,7 @@ declare class Base<R extends Obj = Resource> {
     /** 实例默认属性值，必须通过子类实现 */
     protected get defaultProps(): Obj;
     /** 实例请求操作源，可在子类继承实现 */
-    protected get res(): R;
+    protected get api(): R;
     /** 原始数据 */
     protected _data: Obj;
     constructor(data?: any);
@@ -177,10 +181,7 @@ declare class Resource<S extends string = string> extends Http {
     constructor(name:ModuleName<S>, config?: RequestConfig);
     /** 定义业务请求数据处理逻辑 */
     protected interceptorResolve(response: any): any;
-    request(config: RequestConfig): Promise<any>;
-
-    /** 查询分页列表 */
-    getPageList(param?: Obj): Promise<PagesResult>;
+    request<T = any>(url:string, config: RequestConfig): Promise<T>;
 
     /** formData表单格式上传文件 */
     upload(apiName: string, data: FormData | UniFormData, config?: RequestConfig): Promise<any>;
@@ -189,12 +190,10 @@ declare class Resource<S extends string = string> extends Http {
      **/
     downloadFile(apiName: string, config?: RequestConfig): Promise<any>;
     getFile(apiName: string, param?: Obj, filename?: string): Promise<any>;
-    /** 创建一个数据实体类 */
-    makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>): Ibase<typeof Base, T, R>;
     /** 创建一个分页列表类 */
     makePagesClass<T, Qu = Obj>(Info?: Cls<T>, methodName?: string): Pages<Qu, T>;
     /** 快速创建一个无类型分页数据列表实例 */
-    createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: (param?: Obj<any> | undefined) => Promise<PagesResult>, Item?: Cls<T>): List<Param, T>;
+    createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: Fn, Item?: Cls<T>): List<Param, T>;
 }
 export declare const createApi: BindCreate<Resource>
 
@@ -217,7 +216,7 @@ declare class CacheResult<T extends Obj = Obj> {
 }
 
 interface Adapter {
-    request: (config: RequestConfig) => Promise<unknown>;
+    (url:string, config: RequestConfig): Promise<any>;
     [key: string]: any;
 }
 
@@ -230,8 +229,12 @@ interface ApiConfig {
 }
 /** 初始化 */
 interface InitConfig {
-  /** APP api服务器配置 */
-  apiConfig?: ApiConfig
+  /** 请求适配器，包含有request方法的对象，如：axios */
+  adapter: Adapter,
+  /** 服务器地址 */
+  serverUrl?: string
+  /** 请求地址前缀 */
+  rootPath?: string
   /** 默认请求配置 */
   defRequestConfig?: DefaultRequestConfig
   /** loading 组件服务 */
@@ -244,10 +247,10 @@ export declare function setApiConfig(cfg: ApiConfig): void;
 export declare function setDefRequestConfig(config: DefaultRequestConfig): void;
 /** loading服务配置 */
 export declare function setLoadingServe(loadingServe: LoadingServe): void;
+/** 初始化数据服务 */
+export declare function serviceInit(initConfig?: InitConfig): void;
 
-export declare function serviceInit(adapter: Adapter, initConfig?: InitConfig): void;
-
-
+export declare function buildAdapter<F extends Obj>(frame: F): Adapter;
 export {
     List as BaseList,
     Base as BaseInfo,

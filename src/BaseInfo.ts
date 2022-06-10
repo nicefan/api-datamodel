@@ -35,7 +35,7 @@ class Base<R extends Obj = Resource> {
   protected get defaultProps(){ return {}}
 
   /** 实例请求操作源，可在子类继承实现 */
-  protected get res(): R {
+  protected get api(): R {
     throw Resource.ERROR
   }
 
@@ -111,7 +111,7 @@ class Base<R extends Obj = Resource> {
 
   /** 实例构造时传的id,将调用此方法加载数据， */
   load(id: string) {
-    return this.res?.get(id).then(result => {
+    return this.api?.get(id).then(result => {
       const data = this.onLoadAfter(result) || result
       this.reset(data)
       return data
@@ -178,8 +178,8 @@ function infoExtend<I, R extends Resource, T extends typeof Base>(this:T | void,
       return _defaultData
     }
 
-    get res() {
-      const res = _res || super.res
+    get api() {
+      const res = _res || super.api
       if (!res) throw Resource.ERROR
       return res
     }

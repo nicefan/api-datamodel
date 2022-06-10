@@ -1,6 +1,6 @@
 /*!
-  * api-datamodel v0.2.2
-  * (c) 2021 范阳峰 covien@msn.com
+  * api-datamodel v0.3.3
+  * (c) 2022 范阳峰 covien@msn.com
   * @license MIT
   */
 'use strict';
@@ -197,25 +197,21 @@ class Http {
         return data;
     }
     setDefault(config) {
-        merge__default['default'](this.defaultConfig, config);
+        merge__default["default"](this.defaultConfig, config);
     }
     post(url, data, config = {}) {
-        return this.request(Object.assign(Object.assign({}, config), { url,
-            data, method: 'POST' }));
+        return this.request(url, Object.assign(Object.assign({}, config), { data, method: 'POST' }));
     }
     get(url, data, config = {}) {
-        return this.request(Object.assign(Object.assign({}, config), { url, method: 'GET', params: data }));
+        return this.request(url, Object.assign(Object.assign({}, config), { method: 'GET', params: data }));
     }
     put(url, data, config = {}) {
-        return this.request(Object.assign(Object.assign({}, config), { url,
-            data, method: 'PUT' }));
+        return this.request(url, Object.assign(Object.assign({}, config), { data, method: 'PUT' }));
     }
     delete(url, data, config = {}) {
-        return this.request(Object.assign(Object.assign({}, config), { url,
-            data, method: 'DELETE' }));
+        return this.request(url, Object.assign(Object.assign({}, config), { data, method: 'DELETE' }));
     }
-    request(_a = {}) {
-        var _b;
+    request(url, _a = {}) {
         var { loading } = _a, _config = __rest(_a, ["loading"]);
         if (!_adapter) {
             throw new Error('request对象暂未定义，请先初始化！');
@@ -223,10 +219,8 @@ class Http {
         const showLoading = loading !== false;
         const msgHandle = new Handle(showLoading);
         this.setMessage = msgHandle.setMessage.bind(msgHandle);
-        const config = merge__default['default']({}, this.defaultConfig, _config);
-        if ((_b = config.url) === null || _b === void 0 ? void 0 : _b.startsWith('http'))
-            config.baseURL = '';
-        const request = _adapter.request(config).then((response) => {
+        const config = merge__default["default"]({}, this.defaultConfig, _config);
+        const request = _adapter(url, config).then((response) => {
             msgHandle.setup(response);
             const { responseType, filename } = config;
             const data = response.data;
@@ -237,10 +231,7 @@ class Http {
                 }
                 return data;
             }
-            else if (this.interceptorResolve) {
-                return this.interceptorResolve(response);
-            }
-            return response;
+            return this.interceptorResolve(response);
         });
         Promise.resolve(request)
             .catch((err) => {
@@ -249,6 +240,118 @@ class Http {
         })
             .then((data) => { });
         return request;
+    }
+}
+
+const _apiConfig = {};
+function setApiConfig({ server = '', rootPath = '' }) {
+    Object.assign(_apiConfig, { server, rootPath });
+}
+function getApiConfig() {
+    return _apiConfig;
+}
+const _defRequestConfig = {
+    timeout: 50000,
+    headers: {
+        'content-type': 'application/json',
+    },
+};
+/** 默认请求参数配置 */
+function setDefRequestConfig(config) {
+    merge__default["default"](_defRequestConfig, config);
+}
+function getDefRequestConfig() {
+    return _defRequestConfig;
+}
+let _loadingServe;
+/** loading服务配置 */
+function setLoadingServe(loadingServe) {
+    _loadingServe = loadingServe;
+}
+function getLoadingServe() {
+    if (!_loadingServe)
+        throw new Error('请先执行平台初始化！');
+    return _loadingServe;
+}
+/**
+ * 初始化数据服务
+ * @param config -{ adapter, defRequestConfig, loadingServe }
+ * @param config.adapter 请求模块 如：axios
+ */
+function serviceInit({ adapter, serverUrl, rootPath, loadingServe, defRequestConfig }) {
+    Http.setAdapter(adapter);
+    setApiConfig({
+        server: serverUrl,
+        rootPath
+    });
+    if (loadingServe) {
+        setLoadingServe(loadingServe);
+    }
+    if (defRequestConfig) {
+        setDefRequestConfig(defRequestConfig);
+    }
+}
+
+// 用户数据缓存
+const store = {};
+/** 请求并缓存数据 */
+function getDataCache(name, request, keyField) {
+    const cache = store[name];
+    if (!cache) {
+        return (store[name] = new CacheResult(name, request, keyField));
+    }
+    else if (cache.status === 'ready') {
+        cache.load(request);
+    }
+    return cache;
+}
+function checkType(item, key = 'id') {
+    if (typeof item === 'object') {
+        return ('value' in item && 'label' in item) ? 'dict' : key in item ? 'record' : undefined;
+    }
+}
+class CacheResult {
+    constructor(name, request, _key) {
+        this.name = name;
+        this._key = _key;
+        this.list = [];
+        this._status = 'ready';
+        this.promise = this.load(request);
+    }
+    load(request) {
+        this._status = 'pending';
+        return request().then((data) => {
+            this._status = 'loaded';
+            this._dataType = checkType(data === null || data === void 0 ? void 0 : data[0]);
+            return (this.list = data || []);
+        }, () => (this._status = 'ready'));
+    }
+    get status() {
+        return this._status;
+    }
+    get map() {
+        if (!this._map && this._dataType && this.list.length > 0) {
+            const map = {};
+            for (const item of this.list) {
+                if (this._dataType === 'record') {
+                    const key = this._key || 'id';
+                    if (item[key])
+                        map[key] = item;
+                }
+                else if (this._dataType = 'dict') {
+                    const { value, label } = item;
+                    map[value] = label;
+                }
+            }
+            this._map = Object.freeze(map);
+        }
+        return this._map || {};
+    }
+    get value() {
+        return this.list;
+    }
+    then(callback) {
+        this.promise.then(callback);
     }
 }
 
@@ -406,6 +509,66 @@ function pagesExtend(res, Info) {
     return _Pages;
 }
 
+class Resource extends Http {
+    constructor(name = '', config) {
+        super(config);
+        /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
+        this.basePath = '';
+        const { server = '', rootPath = new.target.rootPath } = getApiConfig();
+        this.basePath = server + (name.startsWith('/') ? name : `${rootPath}/${name}`);
+        this.basePath += this.basePath.endsWith('/') ? '' : '/';
+    }
+    /** 定义业务请求数据处理逻辑 */
+    interceptorResolve(response) {
+        const { code, msg: message, data } = response.data;
+        if (code === 0) {
+            this.setMessage({ code, message });
+            return data;
+        }
+        else {
+            return Promise.reject(Object.assign(Object.assign({}, response), { code, message, setMessage: this.setMessage }));
+        }
+    }
+    request(url, config) {
+        const _config = merge__default["default"]({}, getDefRequestConfig(), config);
+        return super.request(this.basePath + url, _config);
+    }
+    /** 查询分页列表 */
+    // getPageList(param?: Obj) {
+    //   return super.post<PagesResult>('page', param)
+    // }
+    /** formData表单格式上传文件 */
+    upload(apiName, data, config) {
+        return this.request(apiName, Object.assign({ headers: { 'content-type': 'multipart/form-data' }, data }, config));
+    }
+    /** 二进制流文件下载。
+     * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
+     **/
+    downloadFile(apiName, config) {
+        return this.request(apiName, Object.assign({ responseType: 'blob', method: 'POST' }, config));
+    }
+    /** 创建一个数据实体类 */
+    // makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>) {
+    //   return infoExtend(Def, this)
+    // }
+    /** 创建一个分页列表类 */
+    makePagesClass(Info, methodName = 'page') {
+        const queryMethod = (param) => this.post(methodName, param);
+        return pagesExtend(queryMethod, Info);
+    }
+    /** 快速创建一个无类型分页数据列表实例 */
+    createPagesInstance(defParam, method, Item) {
+        const queryMethod = method || this['getPageList'] || ((param) => this.post('page', param));
+        return new (pagesExtend(queryMethod.bind(this), Item))(defParam);
+    }
+}
+/** 工厂模式快速创建实例 */
+Resource.create = create;
+Resource.factory = factory;
+Resource.ERROR = new TypeError('Api instance undefined!');
+Resource.rootPath = '';
+const createApi = Resource.factory();
+
 /** 创建一个基于当前实体类的分页列表类 */
 function makePagesClass(method) {
     return pagesExtend(method || this.prototype.res, this);
@@ -429,7 +592,7 @@ class Base {
     /** 实例默认属性值，必须通过子类实现 */
     get defaultProps() { return {}; }
     /** 实例请求操作源，可在子类继承实现 */
-    get res() {
+    get api() {
         throw Resource.ERROR;
     }
     initProps() {
@@ -473,7 +636,7 @@ class Base {
     reset(data) {
         var _a;
         const _data = this.onUpdateBefore(data) || data;
-        const _def = cloneDeep__default['default'](this.defaultProps);
+        const _def = cloneDeep__default["default"](this.defaultProps);
         if (_data) {
             this._data = Object.assign({}, _data);
             for (const key of Object.keys(_def)) {
@@ -487,7 +650,7 @@ class Base {
     /** 实例构造时传的id,将调用此方法加载数据， */
     load(id) {
         var _a;
-        return (_a = this.res) === null || _a === void 0 ? void 0 : _a.get(id).then(result => {
+        return (_a = this.api) === null || _a === void 0 ? void 0 : _a.get(id).then(result => {
             const data = this.onLoadAfter(result) || result;
             this.reset(data);
             return data;
@@ -496,12 +659,12 @@ class Base {
     /** 克隆实体类 */
     clone() {
         const newItem = Reflect.construct(this.constructor, []);
-        newItem._data = cloneDeep__default['default'](this._data);
+        newItem._data = cloneDeep__default["default"](this._data);
         for (const key of Object.keys(this)) {
             if (!Reflect.has(this.defaultProps, key)) {
                 const descriptor = Reflect.getOwnPropertyDescriptor(this, key);
                 if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.writable) {
-                    newItem[key] = cloneDeep__default['default'](Reflect.get(this, key));
+                    newItem[key] = cloneDeep__default["default"](Reflect.get(this, key));
                 }
             }
         }
@@ -513,11 +676,11 @@ class Base {
     }
     /** 获取源始数据 */
     getOriginal() {
-        return cloneDeep__default['default'](this._data);
+        return cloneDeep__default["default"](this._data);
     }
     /** 获取基础属性的标准对象 */
     getObject() {
-        return cloneDeep__default['default'](pick__default['default'](this._data, Object.keys(this.defaultProps)));
+        return cloneDeep__default["default"](pick__default["default"](this._data, Object.keys(this.defaultProps)));
     }
 }
 Base.extend = infoExtend;
@@ -532,8 +695,8 @@ function infoExtend(DefaultData, res) {
         get defaultProps() {
             return _defaultData;
         }
-        get res() {
-            const res = _res || super.res;
+        get api() {
+            const res = _res || super.api;
             if (!res)
                 throw Resource.ERROR;
             return res;
@@ -547,181 +710,107 @@ function BaseFactory() {
     return infoExtend.bind(this);
 }
 
-class Resource extends Http {
-    constructor(name, config) {
-        super();
-        /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
-        this.basePath = '';
-        if (config) {
-            this.setDefault(config);
-        }
-        this.basePath = name;
-    }
-    /** 定义业务请求数据处理逻辑 */
-    interceptorResolve(response) {
-        const { code, msg: message, data } = response.data;
-        if (code === 0) {
-            this.setMessage({ code, message });
-            return data;
-        }
-        else {
-            return Promise.reject(Object.assign(Object.assign({}, response), { code, message, setMessage: this.setMessage }));
-        }
-    }
-    request(config) {
-        const _config = merge__default['default']({}, getDefRequestConfig(), config, {
-            baseURL: this.constructor.rootPath + this.basePath + '/'
-        });
-        return super.request(_config);
-    }
-    /** 查询分页列表 */
-    getPageList(param) {
-        return super.post('page', param);
-    }
-    /** formData表单格式上传文件 */
-    upload(apiName, data, config) {
-        return super.post(apiName, data, Object.assign({ headers: { 'content-type': 'multipart/form-data' } }, config));
-    }
-    /** 二进制流文件下载。
-     * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
-     **/
-    downloadFile(apiName, config) {
-        return this.request(Object.assign({ responseType: 'blob', url: apiName, method: 'POST' }, config));
-    }
-    /** 创建一个数据实体类 */
-    makeInfoClass(Def) {
-        return infoExtend(Def, this);
-    }
-    /** 创建一个分页列表类 */
-    makePagesClass(Info, methodName = 'page') {
-        const queryMethod = (param) => this.post(methodName, param);
-        return pagesExtend(queryMethod, Info);
-    }
-    /** 快速创建一个无类型分页数据列表实例 */
-    createPagesInstance(defParam, method = this.getPageList, Item) {
-        return new (pagesExtend(method.bind(this), Item))(defParam);
-    }
-}
-/** 工厂模式快速创建实例 */
-Resource.create = create;
-Resource.factory = factory;
-Resource.ERROR = new TypeError('Api instance undefined!');
-Resource.rootPath = '';
-const createApi = Resource.factory();
-
-const _apiConfig = {};
-function setApiConfig({ server = '', rootPath = '' }) {
-    Object.assign(_apiConfig, { server, rootPath });
-    Resource.rootPath = server + rootPath;
-}
-const _defRequestConfig = {
-    timeout: 50000,
-    headers: {
-        'content-type': 'application/json',
-    },
-};
-/** 默认请求参数配置 */
-function setDefRequestConfig(config) {
-    merge__default['default'](_defRequestConfig, config);
-}
-function getDefRequestConfig() {
-    return _defRequestConfig;
-}
-let _loadingServe;
-/** loading服务配置 */
-function setLoadingServe(loadingServe) {
-    _loadingServe = loadingServe;
-}
-function getLoadingServe() {
-    if (!_loadingServe)
-        throw new Error('请先执行平台初始化！');
-    return _loadingServe;
-}
-/**
- * 初始化数据服务
- * @param adapter 请求模块 axios
- * @param config -{ apiConfig, defRequestConfig, loadingServe }
+/*
+ * @Description: taro、uni移动端跨平台请求方式适配
+ * @Autor: 范阳峰
+ * @Date: 2020-07-06 16:12:02
+ * @LastEditors: 范阳峰
+ * @LastEditTime: 2021-08-17 18:34:34
  */
-function serviceInit(adapter, { apiConfig, loadingServe, defRequestConfig } = {}) {
-    Http.setAdapter(adapter);
-    if (apiConfig) {
-        setApiConfig(apiConfig);
-    }
-    if (loadingServe) {
-        setLoadingServe(loadingServe);
-    }
-    if (defRequestConfig) {
-        setDefRequestConfig(defRequestConfig);
-    }
-}
-
-// 用户数据缓存
-const store = {};
-/** 请求并缓存数据 */
-function getDataCache(name, request, keyField) {
-    const cache = store[name];
-    if (!cache) {
-        return (store[name] = new CacheResult(name, request, keyField));
-    }
-    else if (cache.status === 'ready') {
-        cache.load(request);
-    }
-    return cache;
-}
-function checkType(item, key = 'id') {
-    if (typeof item === 'object') {
-        return ('value' in item && 'label' in item) ? 'dict' : key in item ? 'record' : undefined;
-    }
-}
-class CacheResult {
-    constructor(name, request, _key) {
-        this.name = name;
-        this._key = _key;
-        this.list = [];
-        this._status = 'ready';
-        this.promise = this.load(request);
-    }
-    load(request) {
-        this._status = 'pending';
-        return request().then((data) => {
-            this._status = 'loaded';
-            this._dataType = checkType(data === null || data === void 0 ? void 0 : data[0]);
-            return (this.list = data || []);
-        }, () => (this._status = 'ready'));
-    }
-    get status() {
-        return this._status;
-    }
-    get map() {
-        if (!this._map && this._dataType && this.list.length > 0) {
-            const map = {};
-            for (const item of this.list) {
-                if (this._dataType === 'record') {
-                    const key = this._key || 'id';
-                    if (item[key])
-                        map[key] = item;
-                }
-                else if (this._dataType = 'dict') {
-                    const { value, label } = item;
-                    map[value] = label;
-                }
-            }
-            this._map = Object.freeze(map);
+function buildAdapter(frame) {
+    function request(url, _a) {
+        var { params = {}, data = params, headers = {} } = _a, config = __rest(_a, ["params", "data", "headers"]);
+        const { 'content-type': type } = headers, _header = __rest(headers, ['content-type']);
+        if (data.filePath && type === 'multipart/form-data') {
+            return _upload(url, data, _header);
         }
-        return this._map || {};
+        if (config.responseType === 'blob') {
+            return _download(url, headers);
+            // return fetch(new Request(baseURL + url, { headers }))
+            // .then(response => response.blob())
+        }
+        return new Promise((resolve, reject) => {
+            frame.request(Object.assign(Object.assign({ url,
+                data, header: headers }, config), { 
+                // success: resolve,
+                fail(err) {
+                    reject(err);
+                },
+                success(res) {
+                    const code = res.statusCode;
+                    if (code === 200) {
+                        resolve(res);
+                    }
+                    else {
+                        let err;
+                        if (code === 426 && res.header.verifyfailurenum) {
+                            err = { code, message: res.data.msg, verifyfailurenum: res.header.verifyfailurenum };
+                        }
+                        else {
+                            err = { code, message: typeof res.data === 'string' ? res.data : res.data.msg || res.data.message };
+                        }
+                        reject(err);
+                    }
+                },
+                complete(res) {
+                    // console.log(`${baseURL + url}`, res)
+                } }));
+        });
     }
-    get value() {
-        return this.list;
+    function _upload(url, _a = {}, header) {
+        var { filePath, fileKey } = _a, formData = __rest(_a, ["filePath", "fileKey"]);
+        return new Promise((resolve, reject) => {
+            frame.uploadFile({
+                url,
+                filePath,
+                name: fileKey,
+                formData,
+                header,
+                fail(err) {
+                    // console.log('uploadErr:' + url + err)
+                    resolve(err);
+                },
+                success(res) {
+                    const { statusCode: code, data } = res;
+                    if (code === 200) {
+                        resolve({ code, data: JSON.parse(data) });
+                    }
+                    else {
+                        reject({ code, message: res.data });
+                    }
+                },
+            });
+        });
     }
-    then(callback) {
-        this.promise.then(callback);
+    /** 发起一个 HTTP GET 请求，返回文件的本地临时路径 */
+    function _download(url, header) {
+        return new Promise((resolve, reject) => {
+            frame.downloadFile({
+                url,
+                header,
+                success({ tempFilePath, statusCode: code, data }) {
+                    if (code === 200) {
+                        resolve({ code, data: tempFilePath });
+                    }
+                    else {
+                        reject({ code, message: data });
+                    }
+                },
+                fail(err) {
+                    // console.log('downLoadErr:' + url + err)
+                    resolve(err);
+                },
+            });
+        });
     }
+    return request;
 }
 
 exports.ApiResource = Resource;
 exports.BaseInfo = Base;
 exports.BaseList = List;
 exports.Http = Http;
+exports.buildAdapter = buildAdapter;
 exports.createApi = createApi;
 exports.getDataCache = getDataCache;
 exports.infoExtend = infoExtend;

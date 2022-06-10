@@ -1,6 +1,6 @@
 import Http from './Http'
 import factory, { create } from './utils/ResFactory'
-import { getDefRequestConfig} from './service'
+import { getDefRequestConfig, getApiConfig } from './service'
 import merge from 'lodash/merge'
 import { pagesExtend } from './BaseList'
 import {infoExtend} from './BaseInfo'
@@ -13,12 +13,11 @@ class Resource extends Http {
   /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
   protected basePath = ''
 
-  constructor(name: string , config?: RequestConfig) {
-    super()
-    if (config) {
-      this.setDefault(config)
-    }
-    this.basePath = name
+  constructor(name: string = '' , config?: RequestConfig) {
+    super(config)
+    const { server = '', rootPath = new.target.rootPath } = getApiConfig()
+    this.basePath = server + (name.startsWith('/') ? name : `${rootPath}/${name}`)
+    this.basePath += this.basePath.endsWith('/') ? '' : '/'
   }
 
   /** 定义业务请求数据处理逻辑 */
@@ -32,22 +31,21 @@ class Resource extends Http {
     }
   }
 
-  request(config: RequestConfig) {
-    const _config = merge({}, getDefRequestConfig(), config, {
-      baseURL:(this.constructor as any).rootPath + this.basePath + '/'
-    })
-    return super.request(_config)
+  request<T = any>(url:string, config: RequestConfig) {
+    const _config = merge({}, getDefRequestConfig(), config)
+    return super.request<T>(this.basePath + url, _config)
   }
 
   /** 查询分页列表 */
-  getPageList(param?: Obj): Promise<PagesResult> {
-    return super.post('page', param)
-  }
+  // getPageList(param?: Obj) {
+  //   return super.post<PagesResult>('page', param)
+  // }
 
   /** formData表单格式上传文件 */
   upload(apiName: string, data: FormData | UniFormData, config?: RequestConfig) {
-    return super.post(apiName, data, {
+    return this.request(apiName, {
       headers: { 'content-type': 'multipart/form-data' },
+      data,
       ...config,
     })
   }
@@ -56,18 +54,17 @@ class Resource extends Http {
    * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
    **/
   downloadFile(apiName: string, config?: RequestConfig) {
-    return this.request({
+    return this.request(apiName,{
       responseType: 'blob',
-      url: apiName,
       method: 'POST',
       ...config,
     })
   }
 
   /** 创建一个数据实体类 */
-  makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>) {
-    return infoExtend(Def, this)
-  }
+  // makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>) {
+  //   return infoExtend(Def, this)
+  // }
 
   /** 创建一个分页列表类 */
   makePagesClass<T, Qu = Obj>(Info?: Cls<T>, methodName = 'page') {
@@ -76,8 +73,9 @@ class Resource extends Http {
   }
 
   /** 快速创建一个无类型分页数据列表实例 */
-  createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method = this.getPageList, Item?: Cls<T>) {
-    return new (pagesExtend(method.bind(this), Item))<Param>(defParam)
+  createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: Fn, Item?: Cls<T>) {
+    const queryMethod = method || this['getPageList'] || ((param: Obj) => this.post('page', param))
+    return new (pagesExtend(queryMethod.bind(this), Item))<Param>(defParam)
   }
 }
 

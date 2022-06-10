@@ -1,6 +1,5 @@
 import merge from 'lodash/merge'
 import Http from './Http'
-import Resource from './Resource';
 
 interface ApiConfig {
   /** 服务地址,http开头，后面不要加'/' */
@@ -11,7 +10,6 @@ interface ApiConfig {
 const _apiConfig = {}
 export function setApiConfig({server='', rootPath=''}: ApiConfig) {
   Object.assign(_apiConfig, {server, rootPath})
-  Resource.rootPath = server + rootPath
 }
 export function getApiConfig():ApiConfig {
   return _apiConfig
@@ -51,8 +49,14 @@ export function getLoadingServe() {
 
 /** 平台初始化 */
 interface InitConfig {
-  /** APP api服务器配置 */
-  apiConfig?: ApiConfig
+  /** 请求适配器，包含有request方法的对象，如：axios */
+  adapter: Adapter,
+  /** 是否为跨平台框架,如：Taro,Uni */
+  // isCorssFrame?:boolean,
+  /** 服务器地址 */
+  serverUrl?: string
+  /** 请求地址前缀 */
+  rootPath?: string
   /** 默认请求配置 */
   defRequestConfig?: DefaultRequestConfig
   /** loading 组件服务 */
@@ -60,15 +64,17 @@ interface InitConfig {
 }
 /**
  * 初始化数据服务
- * @param adapter 请求模块 axios
- * @param config -{ apiConfig, defRequestConfig, loadingServe }
+ * @param config -{ adapter, defRequestConfig, loadingServe }
+ * @param config.adapter 请求模块 如：axios
  */
-export function serviceInit(adapter: Parameters<typeof Http.setAdapter>[0], { apiConfig, loadingServe, defRequestConfig }: InitConfig = {}) {
+export function serviceInit({adapter, serverUrl, rootPath, loadingServe, defRequestConfig }: InitConfig) {
   Http.setAdapter(adapter)
   
-  if (apiConfig) {
-    setApiConfig(apiConfig)
-  }
+  setApiConfig({
+    server: serverUrl,
+    rootPath
+  })
+
   if (loadingServe) {
     setLoadingServe(loadingServe)
   }

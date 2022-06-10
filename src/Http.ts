@@ -1,12 +1,6 @@
 import MessageHandle from './utils/messageHandle'
 import merge from 'lodash/merge'
 
-
-interface Adapter {
-  request: (config: RequestConfig) => Promise<unknown>
-  [key: string]: any
-}
-
 let _adapter: Adapter
 
 class Http {
@@ -21,7 +15,6 @@ class Http {
     return data
   }
 
-
   /** 请求返回后可用于处理消息提示 */
   setMessage!: MessageHandle['setMessage']
 
@@ -29,58 +22,51 @@ class Http {
     config && this.setDefault(config)
   }
 
-
-  setDefault(config: RequestConfig) {
+  protected setDefault(config: RequestConfig) {
     merge(this.defaultConfig, config)
   }
 
-  post(url: string, data?: Obj, config: RequestConfig = {}) {
-    return this.request({
+  post<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
+    return this.request<T>(url, {
       ...config,
-      url,
       data,
       method: 'POST',
     })
   }
 
-  get(url: string, data?: Obj, config: RequestConfig = {}) {
-    return this.request({
+  get<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
+    return this.request<T>(url, {
       ...config,
-      url,
       method: 'GET',
       params: data,
     })
   }
 
-  put(url: string, data?: Obj, config: RequestConfig = {}) {
-    return this.request({
+  put<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
+    return this.request<T>(url, {
       ...config,
-      url,
       data,
       method: 'PUT',
     })
   }
 
-  delete(url: string, data?: Obj, config: RequestConfig = {}) {
-    return this.request({
+  delete<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
+    return this.request<T>(url,{
       ...config,
-      url,
       data,
       method: 'DELETE',
     })
   }
 
-  request({ loading, ..._config }: RequestConfig = {}) {
+  request<R = any>(url: string, { loading,  ..._config }: RequestConfig = {}) {
     if (!_adapter) {
       throw new Error('request对象暂未定义，请先初始化！')
     }
     const showLoading = loading !== false
     const msgHandle = new MessageHandle(showLoading)
     this.setMessage = msgHandle.setMessage.bind(msgHandle)
-
     const config = merge({}, this.defaultConfig, _config)
-    if (config.url?.startsWith('http')) config.baseURL = ''
-    const request = _adapter.request(config).then((response: any) => {
+    const request = _adapter(url, config).then((response) => {
       msgHandle.setup(response)
 
       const { responseType, filename } = config
@@ -91,10 +77,8 @@ class Http {
           return window.URL.createObjectURL(data)
         }
         return data
-      } else if (this.interceptorResolve) {
-        return this.interceptorResolve(response)
-      }
-      return response
+      } 
+      return this.interceptorResolve(response)
     })
 
     Promise.resolve(request)
@@ -104,7 +88,7 @@ class Http {
       })
       .then((data) => {})
 
-    return request
+    return request as Promise<R>
   }
 }
 

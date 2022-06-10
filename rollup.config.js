@@ -15,21 +15,21 @@ const banner = `/*!
   */`
 
 const tsPlugin = ts({
-        lib: ["esnext"],
-        target: "es2015",
-        declaration: false,
-        outDir: dir,
-        declarationDir: dir+'/types',
-        // check: true,
-        tsconfig: path.resolve(__dirname, 'tsconfig.json'),
-        // cacheRoot: path.resolve(__dirname, 'node_modules/.rts2_cache'),
-        // tsconfigOverride: { compilerOptions: { declaration: false,declarationMap: false } }
-      })
+  lib: ["esnext"],
+  target: "es2015",
+  declaration: false,
+  outDir: dir,
+  declarationDir: dir + '/types',
+  // check: true,
+  tsconfig: path.resolve(__dirname, 'tsconfig.json'),
+  // cacheRoot: path.resolve(__dirname, 'node_modules/.rts2_cache'),
+  // tsconfigOverride: { compilerOptions: { declaration: false,declarationMap: false } }
+})
 const mainFile = 'src/index.ts'
-const mainConfig = [
+export default [
   {
-    input: mainFile,
-    output: {
+  input: mainFile,
+  output: {
       banner,
       format: 'cjs',
       file: pkg.main,
@@ -49,52 +49,6 @@ const mainConfig = [
     plugins: [
       tsPlugin
     ]
-  },
-  {
-    input: 'src/uniRequest.ts',
-    output: {
-      banner,
-      format: 'es',
-      file: `${dir}/uniRequest.js`
-    },
-    plugins: [
-      tsPlugin,
-      commonjs(),
-    ]
   }
 ]
 
-export default mainConfig
-const multi ={
-  // input 是打包入口文件路径
-  // input: 'src/uniRequest.ts',
-  input: {
-    [pkg.name]: 'src/index.ts',
-    uniRequest: 'src/uniRequest.ts'
-  },
-  // 输出配置
-  output: [{
-    // 输出路径及文件名
-    entryFileNames: '[name].es.js',
-    dir: 'dist',
-    // file: 'dist/index2.es.js',
-    // 输出格式
-    format: 'es'
-  },
-    // {
-    //     // 输出路径及文件名
-    //     file: 'dist/bundle.min.js',
-    //     // 输出格式
-    //     format: 'es',
-    //     plugins: [terser()]
-    //   },
-    {
-    entryFileNames: '[name].cjs.js',
-      dir: 'dist',
-      // 输出格式
-      format: 'cjs',
-      name:'dataModal',
-      // plugins: [terser()]
-    }
-  ],
-}

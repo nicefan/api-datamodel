@@ -7,7 +7,7 @@
  */
 type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
 
-type HttpResponseType = 'arraybuffer' | 'blob' | 'document' | 'json' | 'text' | 'stream'
+type HttpResponseType = 'blob' | 'json' | 'text' 
 
 type Obj<T = any> = Record<string, T>
 type Cls<T = any> = new (...args: any[]) => T
@@ -21,7 +21,7 @@ interface MessageData {
 
 interface RequestConfig {
   /** 用于请求的服务器 URL */
-  url?: string
+  // url?: string
   /** 创建请求时使用的方法, 默认"GET" */
   method?: HttpMethod
   baseURL?: string

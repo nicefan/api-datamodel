@@ -1,9 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import Resource from './src/Resource';
-import BaseInfo, { infoExtend } from './src/BaseInfo'
-import { pagesExtend} from './src/BaseList'
+import Resource from './Resource';
+import BaseInfo, { infoExtend } from './BaseInfo'
+import { pagesExtend} from './BaseList'
+import { getCipherInfo } from 'crypto';
 
-const res = new Resource('user')
+const res = Resource.create('user', {
+  getList: 'get',
+  getPageList() {
+    return this.getList<PagesResult>() //as Promise<PagesResult>
+  },
+  getInfo() {
+    return this.post<Record<string, any>>('info')
+  }
+})
 
 class Def {
   id = ''
@@ -27,7 +36,7 @@ const InfoEx = infoExtend(Def, res)
 /** 直接通过请求路径创建，无需另外创建Resource */
 class User extends infoExtend(Def, 'user') {
   test() {
-    this.res.delete('id')
+    this.api.delete('id')
   }
 }
 class SubUser<Resource> extends BaseInfo<Resource> {
@@ -40,7 +49,7 @@ const subFactory = SubUser.createFactory()
 class SSubUser extends subFactory(class { }) {
   test() {
     this.newfunc
-    this.res.delete
+    this.api.delete
   }
 }
 const subUser = new (SubUser.extend(Def))()
@@ -49,8 +58,10 @@ subUser.newfunc
 const user = new User()
 user.realName = 'joe'
 
-/** res创建, 省略一个参数（推荐） */
-class InfoRes extends res.makeInfoClass(Def) {
+/** res创建, 省略一个参数（推荐）
+ * res.makeInfoClass(Def) 等同于 infoExtend(Def, res)
+ */
+class InfoRes extends infoExtend(Def, res) {
   get title() {
     return this.realName + this.area
   }
