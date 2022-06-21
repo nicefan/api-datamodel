@@ -98,7 +98,7 @@ export default class List<P extends Obj = Obj, T = any> {
     return this.records
   }
 
-  refresh() {
+  reload() {
     this.request()
   }
 

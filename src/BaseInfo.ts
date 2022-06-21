@@ -26,7 +26,7 @@ function createPages<Para = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?:
 }
 
 class Base<R extends Obj = Resource> {
-  static extend = infoExtend
+  static extend = extend
   static createFactory = BaseFactory
   static makePagesClass = makePagesClass
   static createPages = createPages
@@ -167,10 +167,10 @@ function decorator<T extends typeof Base, D extends Obj>(target: Cls<T>, default
 }
 
 
-function infoExtend<I, R extends Resource, T extends typeof Base>(this:T | void, DefaultData: Cls<I>, res?: R | string) {
+function extend<I, R extends Resource, T extends typeof Base>(this:T | void, DefaultData: Cls<I>, res?: R | string) {
   const _defaultData = new DefaultData()
   const _res = typeof res === 'string' ? new Resource(res) : res
-  const _Super = this?.prototype.constructor === Base ? this : Base
+  const _Super = (this && Object.getPrototypeOf(this) === Base) ? this : Base
   class _Info extends _Super {
     static api = _res
 
@@ -190,8 +190,8 @@ function infoExtend<I, R extends Resource, T extends typeof Base>(this:T | void,
 
 type BindInfo<T extends typeof Base> = <I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) => Ibase<T, I, R>
 function BaseFactory<T extends typeof Base>(this: T) {
-  return infoExtend.bind(this) as BindInfo<T>
+  return extend.bind(this) as BindInfo<T>
 }
 
-export { infoExtend }
+export const infoExtend = Base.createFactory()
 export default Base
