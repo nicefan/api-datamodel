@@ -18,10 +18,10 @@ export function getApiConfig():ApiConfig {
 type DefaultRequestConfig = Partial<Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'loading'>>
 
 const _defRequestConfig: RequestConfig = {
-  timeout: 50000,
-  headers: {
-    'content-type': 'application/json',
-  },
+  // timeout: 50000,
+  // headers: {
+  //   'content-type': 'application/json',
+  // },
 }
 /** 默认请求参数配置 */
 export function setDefRequestConfig(config:DefaultRequestConfig) {

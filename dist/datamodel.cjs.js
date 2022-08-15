@@ -251,10 +251,10 @@ function getApiConfig() {
     return _apiConfig;
 }
 const _defRequestConfig = {
-    timeout: 50000,
-    headers: {
-        'content-type': 'application/json',
-    },
+// timeout: 50000,
+// headers: {
+//   'content-type': 'application/json',
+// },
 };
 /** 默认请求参数配置 */
 function setDefRequestConfig(config) {
@@ -465,7 +465,7 @@ class List {
         this.records = !this._ItemConstructor ? records : records.map((item) => new this._ItemConstructor(item));
         return this.records;
     }
-    refresh() {
+    reload() {
         this.request();
     }
     /** 获取指定页码数据 */
@@ -683,14 +683,14 @@ class Base {
         return cloneDeep__default["default"](pick__default["default"](this._data, Object.keys(this.defaultProps)));
     }
 }
-Base.extend = infoExtend;
+Base.extend = extend;
 Base.createFactory = BaseFactory;
 Base.makePagesClass = makePagesClass;
 Base.createPages = createPages;
-function infoExtend(DefaultData, res) {
+function extend(DefaultData, res) {
     const _defaultData = new DefaultData();
     const _res = typeof res === 'string' ? new Resource(res) : res;
-    const _Super = (this === null || this === void 0 ? void 0 : this.prototype.constructor) === Base ? this : Base;
+    const _Super = (this && Object.getPrototypeOf(this) === Base) ? this : Base;
     class _Info extends _Super {
         get defaultProps() {
             return _defaultData;
@@ -707,8 +707,9 @@ function infoExtend(DefaultData, res) {
     // return decorator(Info, _defaultData)
 }
 function BaseFactory() {
-    return infoExtend.bind(this);
+    return extend.bind(this);
 }
+const infoExtend = Base.createFactory();
 
 /*
  * @Description: taro、uni移动端跨平台请求方式适配
