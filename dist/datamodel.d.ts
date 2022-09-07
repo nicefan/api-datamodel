@@ -2,8 +2,8 @@
  * @Description:
  * @Autor: 范阳峰
  * @Date: 2020-07-06 17:17:59
- * @LastEditors: 范阳峰
- * @LastEditTime: 2021-10-27 21:29:53
+ * @LastEditors: Please set LastEditors
+ * @LastEditTime: 2022-09-07 13:40:18
  */
 
 /// <reference types="../types" />
@@ -176,7 +176,10 @@ declare class Resource<S extends string = string> extends Http {
     /** 工厂模式快速创建实例 */
     static create: ResCreate;
     static factory: ResFactory;
+    /** 业务请求前缀，默认使用全局配置 */
     static rootPath: string;
+    /** 动态配置当前业务请求配置信息 */
+    static setDefaultConfig(config?: RequestConfig): void
 
     constructor(name:ModuleName<S>, config?: RequestConfig);
     /** 定义业务请求数据处理逻辑 */
@@ -222,18 +225,18 @@ interface Adapter {
 
 type DefaultRequestConfig = Partial<Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'loading'>>
 interface ApiConfig {
-  /** 服务地址,http开头，后面不要加'/' */
+  /** 服务地址,定义不同环境下的请求前缀，后面不要加'/' */
   server?: string
-  /** 请求前缀 */
+  /** 固定的业务请求前缀 */
   rootPath?: string
 }
 /** 初始化 */
 interface InitConfig {
   /** 请求适配器，包含有request方法的对象，如：axios */
   adapter: Adapter,
-  /** 服务器地址 */
+  /** 不同环境的服务器地址或代理前缀 */
   serverUrl?: string
-  /** 请求地址前缀 */
+  /** 业务请求前缀 */
   rootPath?: string
   /** 默认请求配置 */
   defRequestConfig?: DefaultRequestConfig

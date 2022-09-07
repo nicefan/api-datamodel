@@ -9,14 +9,21 @@ class Resource extends Http {
   static create = create
   static factory = factory
   static ERROR = new TypeError('Api instance undefined!')
+  /** 业务请求前缀，默认使用全局配置 */
   static rootPath = ''
   /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
-  protected basePath = ''
+  private static config = {}
+  /** 动态配置当前业务请求配置信息 */
+  static setDefaultConfig(config?: RequestConfig) {
+    merge(this.config, config)
+  }
 
-  constructor(name: string = '' , config?: RequestConfig) {
+  protected basePath = ''
+  
+  constructor(name: string = '', config?: RequestConfig) {
     super(config)
-    const { server = '', rootPath = new.target.rootPath } = getApiConfig()
-    this.basePath = server + (name.startsWith('/') ? name : `${rootPath}/${name}`)
+    const _rootPath = new.target.rootPath || getApiConfig().rootPath
+    this.basePath = name.startsWith('/') ? name : `${_rootPath}/${name}`
     this.basePath += this.basePath.endsWith('/') ? '' : '/'
   }
 
@@ -30,10 +37,11 @@ class Resource extends Http {
       return Promise.reject({ ...response, code, message, setMessage: this.setMessage })
     }
   }
-
   request<T = any>(url:string, config: RequestConfig) {
-    const _config = merge({}, getDefRequestConfig(), config)
-    return super.request<T>(this.basePath + url, _config)
+    // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
+    const _config = merge({}, getDefRequestConfig(), (this.constructor as typeof Resource).config, this.defaultConfig, config)
+    const basePath = this.basePath.startsWith('http') ? this.basePath : getApiConfig().server + this.basePath
+    return super.request<T>(basePath + url, _config)
   }
 
   /** 查询分页列表 */
@@ -46,6 +54,7 @@ class Resource extends Http {
     return this.request(apiName, {
       headers: { 'content-type': 'multipart/form-data' },
       data,
+      method: 'POST',
       ...config,
     })
   }

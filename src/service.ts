@@ -2,9 +2,9 @@ import merge from 'lodash/merge'
 import Http from './Http'
 
 interface ApiConfig {
-  /** 服务地址,http开头，后面不要加'/' */
+  /** 服务地址,定义不同环境下的请求前缀，后面不要加'/' */
   server?: string
-  /** 请求前缀 */
+  /** 固定的业务请求前缀 */
   rootPath?: string
 }
 const _apiConfig = {}
@@ -47,21 +47,21 @@ export function getLoadingServe() {
   return _loadingServe
 }
 
-/** 平台初始化 */
-interface InitConfig {
+/** 初始化请求服务配置 */
+type InitConfig = {
   /** 请求适配器，包含有request方法的对象，如：axios */
   adapter: Adapter,
   /** 是否为跨平台框架,如：Taro,Uni */
   // isCorssFrame?:boolean,
-  /** 服务器地址 */
+  /** 不同环境的服务器地址或代理前缀 */
   serverUrl?: string
-  /** 请求地址前缀 */
+  /** 业务请求前缀 */
   rootPath?: string
   /** 默认请求配置 */
   defRequestConfig?: DefaultRequestConfig
   /** loading 组件服务 */
   loadingServe?: LoadingServe
-}
+} 
 /**
  * 初始化数据服务
  * @param config -{ adapter, defRequestConfig, loadingServe }

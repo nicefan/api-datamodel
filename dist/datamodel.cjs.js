@@ -1,5 +1,5 @@
 /*!
-  * api-datamodel v0.3.3
+  * api-datamodel v0.3.5
   * (c) 2022 范阳峰 covien@msn.com
   * @license MIT
   */
@@ -197,7 +197,7 @@ class Http {
         return data;
     }
     setDefault(config) {
-        merge__default["default"](this.defaultConfig, config);
+        merge__default['default'](this.defaultConfig, config);
     }
     post(url, data, config = {}) {
         return this.request(url, Object.assign(Object.assign({}, config), { data, method: 'POST' }));
@@ -219,7 +219,7 @@ class Http {
         const showLoading = loading !== false;
         const msgHandle = new Handle(showLoading);
         this.setMessage = msgHandle.setMessage.bind(msgHandle);
-        const config = merge__default["default"]({}, this.defaultConfig, _config);
+        const config = merge__default['default']({}, this.defaultConfig, _config);
         const request = _adapter(url, config).then((response) => {
             msgHandle.setup(response);
             const { responseType, filename } = config;
@@ -258,7 +258,7 @@ const _defRequestConfig = {
 };
 /** 默认请求参数配置 */
 function setDefRequestConfig(config) {
-    merge__default["default"](_defRequestConfig, config);
+    merge__default['default'](_defRequestConfig, config);
 }
 function getDefRequestConfig() {
     return _defRequestConfig;
@@ -512,11 +512,14 @@ function pagesExtend(res, Info) {
 class Resource extends Http {
     constructor(name = '', config) {
         super(config);
-        /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
         this.basePath = '';
-        const { server = '', rootPath = new.target.rootPath } = getApiConfig();
-        this.basePath = server + (name.startsWith('/') ? name : `${rootPath}/${name}`);
+        const _rootPath = new.target.rootPath || getApiConfig().rootPath;
+        this.basePath = name.startsWith('/') ? name : `${_rootPath}/${name}`;
         this.basePath += this.basePath.endsWith('/') ? '' : '/';
+    }
+    /** 动态配置当前业务请求配置信息 */
+    static setDefaultConfig(config) {
+        merge__default['default'](this.config, config);
     }
     /** 定义业务请求数据处理逻辑 */
     interceptorResolve(response) {
@@ -530,8 +533,10 @@ class Resource extends Http {
         }
     }
     request(url, config) {
-        const _config = merge__default["default"]({}, getDefRequestConfig(), config);
-        return super.request(this.basePath + url, _config);
+        // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
+        const _config = merge__default['default']({}, getDefRequestConfig(), this.constructor.config, this.defaultConfig, config);
+        const basePath = this.basePath.startsWith('http') ? this.basePath : getApiConfig().server + this.basePath;
+        return super.request(basePath + url, _config);
     }
     /** 查询分页列表 */
     // getPageList(param?: Obj) {
@@ -539,7 +544,7 @@ class Resource extends Http {
     // }
     /** formData表单格式上传文件 */
     upload(apiName, data, config) {
-        return this.request(apiName, Object.assign({ headers: { 'content-type': 'multipart/form-data' }, data }, config));
+        return this.request(apiName, Object.assign({ headers: { 'content-type': 'multipart/form-data' }, data, method: 'POST' }, config));
     }
     /** 二进制流文件下载。
      * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
@@ -566,7 +571,10 @@ class Resource extends Http {
 Resource.create = create;
 Resource.factory = factory;
 Resource.ERROR = new TypeError('Api instance undefined!');
+/** 业务请求前缀，默认使用全局配置 */
 Resource.rootPath = '';
+/**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
+Resource.config = {};
 const createApi = Resource.factory();
 
 /** 创建一个基于当前实体类的分页列表类 */
@@ -636,7 +644,7 @@ class Base {
     reset(data) {
         var _a;
         const _data = this.onUpdateBefore(data) || data;
-        const _def = cloneDeep__default["default"](this.defaultProps);
+        const _def = cloneDeep__default['default'](this.defaultProps);
         if (_data) {
             this._data = Object.assign({}, _data);
             for (const key of Object.keys(_def)) {
@@ -659,12 +667,12 @@ class Base {
     /** 克隆实体类 */
     clone() {
         const newItem = Reflect.construct(this.constructor, []);
-        newItem._data = cloneDeep__default["default"](this._data);
+        newItem._data = cloneDeep__default['default'](this._data);
         for (const key of Object.keys(this)) {
             if (!Reflect.has(this.defaultProps, key)) {
                 const descriptor = Reflect.getOwnPropertyDescriptor(this, key);
                 if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.writable) {
-                    newItem[key] = cloneDeep__default["default"](Reflect.get(this, key));
+                    newItem[key] = cloneDeep__default['default'](Reflect.get(this, key));
                 }
             }
         }
@@ -676,11 +684,11 @@ class Base {
     }
     /** 获取源始数据 */
     getOriginal() {
-        return cloneDeep__default["default"](this._data);
+        return cloneDeep__default['default'](this._data);
     }
     /** 获取基础属性的标准对象 */
     getObject() {
-        return cloneDeep__default["default"](pick__default["default"](this._data, Object.keys(this.defaultProps)));
+        return cloneDeep__default['default'](pick__default['default'](this._data, Object.keys(this.defaultProps)));
     }
 }
 Base.extend = extend;
