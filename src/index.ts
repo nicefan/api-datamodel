@@ -3,7 +3,7 @@
  * @Autor: 范阳峰
  */
 
-export { serviceInit, setDefRequestConfig, setLoadingServe, setApiConfig } from './service'
+export { serviceInit, setLoadingServe, createServer, setGlobalConfig, defineConfig } from './service'
 export { getDataCache } from './dataCache'
 /**
  * 标准http请求类
@@ -12,7 +12,7 @@ export { default as Http } from './Http'
 /**
  * http package 资源类
  */
-export { default as ApiResource, createApi } from './Resource'
+export { default as ApiResource } from './Resource'
 /**
  * 实体类
  */

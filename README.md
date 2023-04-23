@@ -16,35 +16,68 @@ yarn add api-datamodel
 
 ```ts
 import axios from 'axios'
-import { serverInit, setApiConfig, setDefRequestConfig, setLoadingServe } from 'api-datamodel'
+import { createServer, setLoadingServe } from 'api-datamodel'
+import { message as showMessage, Modal } from 'ant-design-vue';
 
-// 配置请求适配器（必须）
-serverInit(axios),
-
-// 配置API服务地址或请求前缀
-setApiConfig({
-    server: '', // 服务地址
-    rootPath: '/api', // 请求前缀
-})
-
-// 默认请求参数
-setDefRequestConfig({
-	timeout: 30000,
-    headers: {
-        //...
-    }
-})
-
+const key = '_LOADINGMESSAGE_'
 // 配置loading及消息显示
+// 以ant-design-vue为例，实现全局请求loading显示及请求返回消息自动提示
 setLoadingServe({
-    show() {
-        // 显示loading的操作
-    },
-    close({message, type, code} = {}) {
-        // 全部请求结束后关闭loading及显示消息的操作
-        // 可以通过code判断进行友好提示
+  show() {
+    // 显示loading的操作
+    showMessage.loading({ content: '请求中...', duration: 0, key });
+  },
+  close(data) {
+    const { message, type, code, errMessageMode } = data;
+    // 全部请求结束后关闭loading及显示消息的操作
+    // 可以通过code判断进行友好提示
+    if (type === 'error' && errMessageMode === 'modal') {
+      Modal.error({
+        title: '错误提示',
+        content: message,
+      });
+    } else if (message && message !== 'SUCCESS') {
+      showMessage.open({ type, content: message, key, duration: 2.5 });
+    } else {
+      showMessage.destroy(key);
     }
-})
+  },
+});
+
+/** 创建一个请求服务类 */
+const ApiServer = createServer({
+  // 配置请求适配器（必须）
+  adapter: axios,
+  // 请求服务地址，一般用于移动端
+  serverUrl: '', 
+  // 请求地址前缀，对应反向代理配置
+  rootPath: '/api',
+  // 拦截请求返回数据，处理成标准数据格式返回，用于自动消息处理
+  transformResponse(resultData) {
+    const { code, msg, data } = resultData;
+    return {
+      code,
+      message: msg,
+      data,
+      success: code === 200,
+    };
+  },
+  // 请求拦截，一般用于设置请求头
+  requestInterceptors: (config) => {
+  // 请求之前处理config
+    return config
+  }
+  // 默认请求参数
+  defRequestConfig: {
+    timeout: 30000,
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  },
+});
+
+// 定义一个请求实例工厂方法
+const createApi = ApiServer.create.bind(ApiServer)
+
+export { createApi }
 ```
 
 ## 创建api实例
@@ -52,17 +85,25 @@ setLoadingServe({
 以“user”接口模块为例，创建一个“user”请求资源实例：
 
 ```ts
-import { createApi } from 'api-datamodel'
 const userApi = createApi('/user', {
-    getPageList(param) {
-        return this.get('page', param) // 实际请求地址为"/user/page"
+    getPageList(param) {// 实际请求地址为"/api/user/page"
+        return this.get('page', param, {
+          /** 静默请求，不显示loading及消息 */
+          silent?: boolean
+          /** 后台加载，不显示loading框 */
+          backendLoad?: boolean
+          /** 错误提示方式 */
+          errMessageMode?: 'modal' | 'message'
+          // ...其它请求参数
+        }) 
     },
     getInfo(param?: Obj) {
-        return this.get('getInfo', param) // 实际请求地址为"/user/getInfo"
+        return this.get('getInfo', param) // 实际请求地址为"/api/user/getInfo"
     }
-    // 快捷语法糖实现
+    // 上面方法使用快捷语法糖实现
     getInfo: 'get', 
 })
+
 export { userApi }
 ```
 
@@ -108,9 +149,10 @@ const publicApi = createApi('/public', {
 
 | 属性 | 说明                  |
 | ---- | --------------------- |
-| code | 状态码，0表示请求正常 |
+| code | 状态码 |
 | msg  | 请求提示消息          |
 | data | 返回的数据对象        |
+| success | 是否请求成功        |
 
 当一个请求列队全部请求完成后，最后一个返回的提示消息将通过调用配置好的 `loadingServe` 的 `close` 方法返回，实现自动的消息提示显示。在 `close` 方法中可以通过 `code` 进行统一的消息处理。
 
@@ -121,8 +163,7 @@ const publicApi = createApi('/public', {
 当某个请求需要替换接口返回的提示或不显示默认提示时，可以使用请求实例的 `setMessage` 方法处理。
 
 ```ts
-import { createApi } from 'api-datamodel'
-const userApi = createApi('/user', {
+export const userApi = createApi('/user', {
     save(param) {
         return this.post('save', param).then(result => {
             // 替换接口返回消息，为空时不显示消息提示
@@ -131,7 +172,6 @@ const userApi = createApi('/user', {
         })
     },
 })
-export { userApi }
 ```
 
 在业务代码中调用：
@@ -139,24 +179,24 @@ export { userApi }
 ``` ts
 import { userApi } from '@/api'
 
-userApi.save({ ... }).then(result => {
-              userApi.setMessage('')
-             })
+userApi
+  .save({ ... })
+  .then(result => {
+    userApi.setMessage('')
+  })
 ```
 
 ### loading状态控制
 
-默认情况下发起请求会自动以请求列队的方式， 在请求时长超过200毫秒时实现loading状态显示。当某个请求需静默无感知刷新数据时，可以在请求参数中加上 `loading: false` 。
+默认情况下发起请求会自动以请求列队的方式， 在请求时长超过200毫秒时实现loading状态显示。当某个请求需静默无感知刷新数据时，可以在请求参数中加上 `silent: true` 。
 
 ```ts
-import { createApi } from 'api-datamodel'
-const userApi = createApi('/user', {
+export const userApi = createApi('/user', {
     /** 获取用户消息，防止出现加载提示 */
     getNotice(id: string) {
-        return this.get('notice', { id }, { loading: false })
+        return this.get('notice', { id }, { slient: true })
     },
 })
-export { userApi }
 ```
 
 

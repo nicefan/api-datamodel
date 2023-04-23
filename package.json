@@ -1,6 +1,6 @@
 {
   "name": "api-datamodel",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "author": {
     "name": "nicefan",
     "email": "covien@msn.com"
@@ -18,13 +18,12 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
+    "@rollup/plugin-terser": "^0.4.1",
     "@rollup/plugin-typescript": "^8.2.5",
     "@types/lodash": "^4.14.172",
     "@types/node": "^16.6.1",
     "lodash": "^4.17.21",
     "rollup": "^2.56.2",
-    "rollup-plugin-terser": "^7.0.2",
-    "rollup-plugin-typescript2": "^0.30.0",
     "tsc": "^2.0.3",
     "tslib": "^2.3.1",
     "typescript": "^4.3.5"

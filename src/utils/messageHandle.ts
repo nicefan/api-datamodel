@@ -1,18 +1,29 @@
 import taskStack from './taskStack'
 import isPlainObject from 'lodash/isPlainObject'
 
+interface HandleOptions {
+    /** 后台加载，不显示loading等待框 */
+    backendLoad?: boolean
+    /** 静默请求，不显示loading及消息 */
+    silent?: boolean
+    /** 错误提示方式 */
+    errMessageMode?: ErrorMessageMode  
+}
 export default class Handle {
   /** 手动设置消息数据 */
-  private _md?: MessageData
+  private _md: MessageData
   private _orginData?: any
 
-  constructor(private showLoading = true) {
-    if (showLoading) taskStack.start()
+  constructor(private _options: HandleOptions = {}) {
+    const {backendLoad, silent, errMessageMode} = _options
+    this._md = { errMessageMode }
+   if (!backendLoad && !silent) taskStack.start()
   }
 
   private isInit = false
 
   setup(data: any) {
+    if (this._options.silent) return
     this._orginData = data
   
     if (this.isInit) return
@@ -29,30 +40,23 @@ export default class Handle {
     if (!msgData) {
       this._md = { code: 0, message: '' }
     } else if (typeof msgData === 'string') {
-      this._md = { message: msgData }
+      this._md.message = msgData
     } else {
-      this._md = { ...msgData }
+      this._md = { ...this._md, ...msgData }
     }
   }
 
   private handle() {
-    const data = {...this._orginData, ...this._md}
-    let msgData
-
-    const { code, message, type } = data as MessageData
-    if (code) {
+    const { code, message, success } = this._orginData
+    let msgData = {}
+    if (!success) {
       const _message = this.formatError(code, message)
-      msgData = {...data, type:'error', message: _message}
+      msgData = {...this._orginData, type:'error', message: _message, ...this._md }
     } else if (typeof message === 'string') {
-      msgData = {
-        ...data,
-        // 后台返回null表示无消息处理！
-        message,
-        type: type || 'success',
-      }
+      msgData = {...this._orginData, type: 'success', ...this._md}
     }
 
-    if (this.showLoading) {
+    if (!this._options.backendLoad) {
       taskStack.complete(msgData)
     } else if (msgData) {
       // 不进行loading加载的请求消息显示
@@ -61,7 +65,7 @@ export default class Handle {
   }
 
   // 请求异常处理
-  private formatError(code: string | number, _message='') {
+  private formatError(code?: string | number, _message='') {
     let message = _message
 
     if (code === 401 || code === -2) {

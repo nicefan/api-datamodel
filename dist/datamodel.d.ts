@@ -24,7 +24,7 @@ interface UniFormData {
 }
 
 export declare class Http {
-    static setAdapter(adapter: Adapter): void;
+    protected static options:DefOptions;
     protected defaultConfig: RequestConfig;
     /** 请求数据拦截，在子类实现 */
     protected interceptorResolve(data: any): any;
@@ -63,8 +63,6 @@ type Interceptor = (method: Fn<Promise<any>>, Params: Obj, res?: Resource) => Pr
  * 列表抽象类 <参数类型定义>
  */
 declare class List<P extends Obj = Obj, T = any> {
-    /** 请求拦截器，用于格式化查询条件及返回数据的数据结构 */
-    static setInterceptor:(func: Interceptor) => void;
      /** 集合类型构造器 */
     protected get _ItemConstructor(): void | Cls<T>;
     /** 请求方法定义 */
@@ -106,14 +104,14 @@ declare class List<P extends Obj = Obj, T = any> {
 }
 
 
-type Pages<P, I> = {
-    new <Para = P>(param?: P): List<Para, I>
+type Pages<P extends Obj, I> = {
+    new <Para extends Obj = P>(param?: P): List<Para, I>
 };
 /** 分页查询类工厂方法
  * @param res 包含有getPageList方法的数据资源对象 或者指定查询请求方法
  * @param Info （可选）指定数据集合的实体类
  */
-export declare function pagesExtend<Para = Obj, I = Obj>(res: Obj | Fn<Promise<any>>, Info?: Cls<I>): Pages<Para, I>;
+export declare function pagesExtend<Para extends Obj = Obj, I = Obj>(res: Obj | Fn<Promise<any>>, Info?: Cls<I>): Pages<Para, I>;
 
 /**
  * 传递对象默认属性值创建数据模型
@@ -129,9 +127,9 @@ export type Ibase<T extends typeof Base, D, R extends Obj = Resource> = {
 }
 
 /** 创建一个基于当前实体类的分页列表类 */
-declare function makePagesClass<Para = Obj, T = Obj>(this: Cls<T>, method?: Fn<Promise<PagesResult>>): Pages<Para, T>;
+declare function makePagesClass<Para extends Obj = Obj, T = Obj>(this: Cls<T>, method?: Fn<Promise<PagesResult>>): Pages<Para, T>;
 /** 快速创建一个分页数据列表实例 */
-declare function createPages<Para = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?: Fn<Promise<PagesResult>>): List<Para, T>;
+declare function createPages<Para extends Obj = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?: Fn<Promise<PagesResult>>): List<Para, T>;
 declare class Base<R extends Obj = Resource> {
     static extend: typeof infoExtend;
     static createFactory: typeof BaseFactory;
@@ -172,18 +170,13 @@ type BindInfo<T extends typeof Base> = <I, R extends Resource>(DefaultData: Cls<
 export declare function BaseFactory<T extends typeof Base>(this: T): BindInfo<T>
 
 declare class Resource<S extends string = string> extends Http {
-    protected basePath: string;
     /** 工厂模式快速创建实例 */
     static create: ResCreate;
     static factory: ResFactory;
-    /** 业务请求前缀，默认使用全局配置 */
-    static rootPath: string;
-    /** 动态配置当前业务请求配置信息 */
-    static setDefaultConfig(config?: RequestConfig): void
 
-    constructor(name:ModuleName<S>, config?: RequestConfig);
+    constructor(name?:ModuleName<S>, config?: RequestConfig);
+
     /** 定义业务请求数据处理逻辑 */
-    protected interceptorResolve(response: any): any;
     request<T = any>(url:string, config: RequestConfig): Promise<T>;
 
     /** formData表单格式上传文件 */
@@ -194,11 +187,10 @@ declare class Resource<S extends string = string> extends Http {
     downloadFile(apiName: string, config?: RequestConfig): Promise<any>;
     getFile(apiName: string, param?: Obj, filename?: string): Promise<any>;
     /** 创建一个分页列表类 */
-    makePagesClass<T, Qu = Obj>(Info?: Cls<T>, methodName?: string): Pages<Qu, T>;
+    makePagesClass<T, Qu extends Obj = Obj>(Info?: Cls<T>, methodName?: string): Pages<Qu, T>;
     /** 快速创建一个无类型分页数据列表实例 */
-    createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: Fn, Item?: Cls<T>): List<Param, T>;
+    createPagesInstance<Param extends Obj = Obj, T = Obj>(defParam?: Obj, method?: Fn, Item?: Cls<T>): List<Param, T>;
 }
-export declare const createApi: BindCreate<Resource>
 
 /** 返回请求并缓存的数据 */
 export declare function getDataCache<T extends Obj = Obj>(name: string, request: Fn<Promise<any>>, keyField?: string): CacheResult<T>;
@@ -223,15 +215,9 @@ interface Adapter {
     [key: string]: any;
 }
 
-type DefaultRequestConfig = Partial<Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'loading'>>
-interface ApiConfig {
-  /** 服务地址,定义不同环境下的请求前缀，后面不要加'/' */
-  server?: string
-  /** 固定的业务请求前缀 */
-  rootPath?: string
-}
-/** 初始化 */
-interface InitConfig {
+type DefaultRequestConfig = Partial<Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'backendLoad'>>
+
+interface DefOptions {
   /** 请求适配器，包含有request方法的对象，如：axios */
   adapter: Adapter,
   /** 不同环境的服务器地址或代理前缀 */
@@ -240,18 +226,27 @@ interface InitConfig {
   rootPath?: string
   /** 默认请求配置 */
   defRequestConfig?: DefaultRequestConfig
+  /** 请求前拦截处理 */
+  requestInterceptors?: (config: RequestConfig) => RequestConfig
+  /** 定义业务请求数据处理逻辑 */
+  transformResponse?: (result: Obj) => {code: number, message: string, data: Obj, success: boolean}
+}
+
+/** 初始化 */
+type InitConfig = DefOptions & {
   /** loading 组件服务 */
   loadingServe?: LoadingServe
 }
-
-export declare function setApiConfig(cfg: ApiConfig): void;
-
-/** 默认请求参数配置 */
-export declare function setDefRequestConfig(config: DefaultRequestConfig): void;
+/** 创建一个请求服务 */
+export declare function createServer(options:DefOptions): typeof Resource
 /** loading服务配置 */
-export declare function setLoadingServe(loadingServe: LoadingServe): void;
+export declare function setLoadingServe(loadingServe: LoadingServe): void
 /** 初始化数据服务 */
-export declare function serviceInit(initConfig?: InitConfig): void;
+export declare function setGlobalConfig(initConfig?: InitConfig):void
+/** 定义服务配置选项 */
+export declare function defineConfig<T = DefOptions>(options?: T): T
+/** 配置全局请求参数，并返回一个服务工厂方法 */
+export declare function serviceInit(initConfig?: InitConfig): BindCreate<Resource>
 
 export declare function buildAdapter<F extends Obj>(frame: F): Adapter;
 export {

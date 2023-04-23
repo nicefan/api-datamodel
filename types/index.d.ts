@@ -12,11 +12,14 @@ type HttpResponseType = 'blob' | 'json' | 'text'
 type Obj<T = any> = Record<string, T>
 type Cls<T = any> = new (...args: any[]) => T
 type Fn<T = any> = (...args: any) => T
+type ErrorMessageMode =  'none'| 'message' |'modal'
 interface MessageData {
+  success?: boolean
   code?: number | string
   message?: string
   /** 消息类型 */
   type?: 'success' | 'warning' | 'info' | 'error'
+  errMessageMode?: ErrorMessageMode
 }
 
 interface RequestConfig {
@@ -42,8 +45,12 @@ interface RequestConfig {
   onUploadProgress?: (progressEvent: any) => void
   onDownloadProgress?: (progressEvent: any) => void
   // maxContentLength?: number;
-  /** 不显示loading等待框 */
-  loading?: false
+  /** 后台加载，不显示loading等待框 */
+  backendLoad?: boolean
+  /** 静默请求，不显示loading及消息 */
+  silent?: boolean
+  /** 错误提示方式 */
+  errMessageMode?: ErrorMessageMode
   /** 指定下载时保存的文件名 */
   filename?: string
 }

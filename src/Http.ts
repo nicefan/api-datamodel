@@ -1,29 +1,36 @@
+import { defaultOptions } from './service'
 import MessageHandle from './utils/messageHandle'
 import merge from 'lodash/merge'
 
-let _adapter: Adapter
-
 class Http {
-  /** 设置请求处理对象 */
-  static setAdapter(adapter: Adapter): void {
-    _adapter = adapter
-  }
-  protected defaultConfig: RequestConfig = {}
-
-  /** 请求数据拦截，在子类实现 */
-  protected interceptorResolve(data: any) {
-    return data
-  }
+  protected static options:Partial<DefOptions> = {}
 
   /** 请求返回后可用于处理消息提示 */
   setMessage!: MessageHandle['setMessage']
 
+  protected requestConfig: RequestConfig = {}
+
   constructor(config?: RequestConfig) {
+    new.target.options = {...defaultOptions, ...new.target.options}
     config && this.setDefault(config)
   }
 
   protected setDefault(config: RequestConfig) {
-    merge(this.defaultConfig, config)
+    merge(this.requestConfig, config)
+  }
+
+  /** 请求数据消息处理 */
+  protected interceptorResolve(response) {
+    const {code, message, data, success} = response.data || {}
+    if (code === 'undefined') {
+      return response.data
+    }
+    else if (success) {
+      this.setMessage({ code, message, success })
+      return data
+    } else {
+      return Promise.reject({ ...response, code, message, setMessage: this.setMessage })
+    }
   }
 
   post<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
@@ -58,26 +65,33 @@ class Http {
     })
   }
 
-  request<R = any>(url: string, { loading,  ..._config }: RequestConfig = {}) {
-    if (!_adapter) {
+  request<R = any>(url: string, config: RequestConfig = {}) {
+    const {adapter, defRequestConfig, requestInterceptors, transformResponse} = (this.constructor as typeof Http).options
+    if (!adapter) {
       throw new Error('request对象暂未定义，请先初始化！')
     }
-    const showLoading = loading !== false
-    const msgHandle = new MessageHandle(showLoading)
+    const {backendLoad, silent, errMessageMode, filename, ..._config} = merge({}, defRequestConfig, this.requestConfig, config)
+
+    const msgHandle = new MessageHandle({backendLoad, silent, errMessageMode})
     this.setMessage = msgHandle.setMessage.bind(msgHandle)
-    const config = merge({}, this.defaultConfig, _config)
-    const request = _adapter(url, config).then((response) => {
+    // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
+    // 请求前的请求拦截操作
+    const requestConfig = requestInterceptors?.(_config) || _config
+    const request = adapter(url, requestConfig).then((response) => {
       msgHandle.setup(response)
 
-      const { responseType, filename } = config
       const data = response.data
-      if (responseType === 'blob') {
+      if (requestConfig.responseType === 'blob') {
         // axios blob数据转为url,保持和uniRequest一致
         if (data.size) {
           return window.URL.createObjectURL(data)
         }
         return data
       } 
+      // 返回数据格式化处理
+      if (transformResponse) {
+        response.data = transformResponse(data)
+      }
       return this.interceptorResolve(response)
     })
 

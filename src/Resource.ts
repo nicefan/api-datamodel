@@ -1,7 +1,5 @@
 import Http from './Http'
 import factory, { create } from './utils/ResFactory'
-import { getDefRequestConfig, getApiConfig } from './service'
-import merge from 'lodash/merge'
 import { pagesExtend } from './BaseList'
 import {infoExtend} from './BaseInfo'
 class Resource extends Http {
@@ -9,39 +7,25 @@ class Resource extends Http {
   static create = create
   static factory = factory
   static ERROR = new TypeError('Api instance undefined!')
-  /** 业务请求前缀，默认使用全局配置 */
-  static rootPath = ''
-  /**通过继承生成自定类时，可以指定该属性实现多服务器请求 */
-  private static config = {}
-  /** 动态配置当前业务请求配置信息 */
-  static setDefaultConfig(config?: RequestConfig) {
-    merge(this.config, config)
-  }
 
-  protected basePath = ''
+  /** 
+   * 业务请求前缀，默认使用全局配置;
+   * 通过继承生成自定类时，可以指定该属性实现多服务器请求 
+   * */
+
+  private basePath = ''
   
   constructor(name: string = '', config?: RequestConfig) {
     super(config)
-    const _rootPath = new.target.rootPath || getApiConfig().rootPath
-    this.basePath = name.startsWith('/') ? name : `${_rootPath}/${name}`
-    this.basePath += this.basePath.endsWith('/') ? '' : '/'
+    const {serverUrl='', rootPath=''} = new.target.options
+    this.basePath = serverUrl + (name.startsWith('/') ? name : `${rootPath}/${name}`)
+    // this.basePath += this.basePath.endsWith('/') ? '' : '/'
   }
 
-  /** 定义业务请求数据处理逻辑 */
-  protected interceptorResolve(response) {
-    const { code, msg: message, data } = response.data
-    if (code === 0) {
-      this.setMessage({ code, message })
-      return data
-    } else {
-      return Promise.reject({ ...response, code, message, setMessage: this.setMessage })
-    }
-  }
-  request<T = any>(url:string, config: RequestConfig) {
+  request<T = any>(path:string, config: RequestConfig) {
     // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
-    const _config = merge({}, getDefRequestConfig(), (this.constructor as typeof Resource).config, this.defaultConfig, config)
-    const basePath = this.basePath.startsWith('http') ? this.basePath : getApiConfig().server + this.basePath
-    return super.request<T>(basePath + url, _config)
+    const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path
+    return super.request<T>(url, config)
   }
 
   /** 查询分页列表 */
@@ -88,5 +72,4 @@ class Resource extends Http {
   }
 }
 
-export const createApi = Resource.factory()
 export default Resource

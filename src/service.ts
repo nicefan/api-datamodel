@@ -1,34 +1,19 @@
 import merge from 'lodash/merge'
-import Http from './Http'
+import Resource from './Resource'
 
-interface ApiConfig {
-  /** 服务地址,定义不同环境下的请求前缀，后面不要加'/' */
-  server?: string
-  /** 固定的业务请求前缀 */
-  rootPath?: string
-}
-const _apiConfig = {}
-export function setApiConfig({server='', rootPath=''}: ApiConfig) {
-  Object.assign(_apiConfig, {server, rootPath})
-}
-export function getApiConfig():ApiConfig {
-  return _apiConfig
-}
-
-type DefaultRequestConfig = Partial<Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'loading'>>
-
-const _defRequestConfig: RequestConfig = {
-  // timeout: 50000,
-  // headers: {
-  //   'content-type': 'application/json',
-  // },
-}
-/** 默认请求参数配置 */
-export function setDefRequestConfig(config:DefaultRequestConfig) {
-  merge(_defRequestConfig, config)
-}
-export function getDefRequestConfig() {
-  return _defRequestConfig
+export const defaultOptions: Partial<DefOptions> = {
+  defRequestConfig: {
+    timeout: 50000
+  },
+  // transformResponse(resultData) {
+  //   const { code, message, data } = resultData
+  //   return {
+  //     code,
+  //     message: message === 'SUCCESS' ? '' : message,
+  //     data,
+  //     success: code === 0 || code === 200
+  //   }
+  // }
 }
 
 /** loading服务 */
@@ -54,32 +39,38 @@ type InitConfig = {
   /** 是否为跨平台框架,如：Taro,Uni */
   // isCorssFrame?:boolean,
   /** 不同环境的服务器地址或代理前缀 */
-  serverUrl?: string
-  /** 业务请求前缀 */
-  rootPath?: string
-  /** 默认请求配置 */
-  defRequestConfig?: DefaultRequestConfig
   /** loading 组件服务 */
   loadingServe?: LoadingServe
-} 
+} & DefOptions
+
 /**
- * 初始化数据服务
+ * 设置全局配置
  * @param config -{ adapter, defRequestConfig, loadingServe }
  * @param config.adapter 请求模块 如：axios
  */
-export function serviceInit({adapter, serverUrl, rootPath, loadingServe, defRequestConfig }: InitConfig) {
-  Http.setAdapter(adapter)
-  
-  setApiConfig({
-    server: serverUrl,
-    rootPath
-  })
-
+export function setGlobalConfig({loadingServe, ...options }: InitConfig) {
   if (loadingServe) {
     setLoadingServe(loadingServe)
   }
-  if (defRequestConfig) {
-    setDefRequestConfig(defRequestConfig)
-  }
+
+  merge(defaultOptions, options)
 }
 
+export function defineConfig(options: DefOptions) {
+  return options
+}
+
+/** 配置全局请求参数，并返回一个服务工厂方法 */
+export function serviceInit(config) {
+  setGlobalConfig(config)
+
+  return Resource.factory()
+}
+
+/** 创建一个请求服务 */
+export function createServer(config: DefOptions) {
+  class Server extends Resource{
+    protected static options = config
+  }
+  return Server
+}
