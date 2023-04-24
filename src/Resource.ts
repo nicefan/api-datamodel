@@ -8,25 +8,6 @@ class Resource extends Http {
   static factory = factory
   static ERROR = new TypeError('Api instance undefined!')
 
-  /** 
-   * 业务请求前缀，默认使用全局配置;
-   * 通过继承生成自定类时，可以指定该属性实现多服务器请求 
-   * */
-
-  private basePath = ''
-  
-  constructor(name: string = '', config?: RequestConfig) {
-    super(config)
-    const {serverUrl='', rootPath=''} = new.target.options
-    this.basePath = serverUrl + (name.startsWith('/') ? name : `${rootPath}/${name}`)
-    // this.basePath += this.basePath.endsWith('/') ? '' : '/'
-  }
-
-  request<T = any>(path:string, config: RequestConfig) {
-    // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
-    const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path
-    return super.request<T>(url, config)
-  }
 
   /** 查询分页列表 */
   // getPageList(param?: Obj) {

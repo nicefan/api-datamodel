@@ -105,15 +105,18 @@ class Handle {
     constructor(_options = {}) {
         this._options = _options;
         this.isInit = false;
-        const { backendLoad, silent, errMessageMode } = _options;
-        this._md = { errMessageMode };
+        const { backendLoad, silent } = _options;
         if (!backendLoad && !silent)
             taskStack.start();
     }
-    setup(data) {
+    setup(errData) {
         if (this._options.silent)
             return;
-        this._orginData = data;
+        if (errData) {
+            const { code, message } = errData;
+            errData.message = this.formatError(code, message);
+            this._orginData = errData;
+        }
         if (this.isInit)
             return;
         this.isInit = true;
@@ -125,24 +128,21 @@ class Handle {
     /** 替换消息，消息类型按请求状态，空字符串将取消显示后台消息 */
     setMessage(msgData) {
         if (!msgData) {
-            this._md = { code: 0, message: '' };
+            this._md = undefined;
         }
         else if (typeof msgData === 'string') {
-            this._md.message = msgData;
+            this._md = Object.assign(Object.assign({}, this._md), { message: msgData });
         }
         else {
             this._md = Object.assign(Object.assign({}, this._md), msgData);
         }
     }
     handle() {
-        const { code, message, success } = this._orginData;
-        let msgData = {};
-        if (!success) {
-            const _message = this.formatError(code, message);
-            msgData = Object.assign(Object.assign(Object.assign({}, this._orginData), { type: 'error', message: _message }), this._md);
-        }
-        else if (typeof message === 'string') {
-            msgData = Object.assign(Object.assign(Object.assign({}, this._orginData), { type: 'success' }), this._md);
+        var _a;
+        let msgData;
+        if (this._orginData || this._md) {
+            const type = ((_a = this._md) === null || _a === void 0 ? void 0 : _a.success) ? 'success' : 'error';
+            msgData = Object.assign(Object.assign({ type, errMessageMode: this._options.errMessageMode }, this._orginData), this._md);
         }
         if (!this._options.backendLoad) {
             taskStack.complete(msgData);
@@ -174,10 +174,13 @@ class Handle {
 }
 
 class Http {
-    constructor(config) {
+    constructor(path, config) {
         this.requestConfig = {};
-        new.target.options = Object.assign(Object.assign({}, defaultOptions), new.target.options);
-        config && this.setDefault(config);
+        this.basePath = '';
+        this.options = Object.assign(Object.assign(Object.assign({}, defaultOptions), new.target.options), config);
+        // config && this.setDefault(config)
+        const { serverUrl = '', rootPath = '' } = this.options;
+        this.basePath = serverUrl + (!path ? rootPath : path.startsWith('/') ? path : `${rootPath}/${path}`);
     }
     setDefault(config) {
         merge(this.requestConfig, config);
@@ -208,19 +211,20 @@ class Http {
     delete(url, data, config = {}) {
         return this.request(url, Object.assign(Object.assign({}, config), { data, method: 'DELETE' }));
     }
-    request(url, config = {}) {
-        const { adapter, defRequestConfig, requestInterceptors, transformResponse } = this.constructor.options;
+    request(path, config = {}) {
+        const { adapter, defRequestConfig, requestInterceptors, transformResponse } = this.options;
         if (!adapter) {
             throw new Error('request对象暂未定义，请先初始化！');
         }
+        // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
         const _a = merge({}, defRequestConfig, this.requestConfig, config), { backendLoad, silent, errMessageMode, filename } = _a, _config = __rest(_a, ["backendLoad", "silent", "errMessageMode", "filename"]);
         const msgHandle = new Handle({ backendLoad, silent, errMessageMode });
         this.setMessage = msgHandle.setMessage.bind(msgHandle);
-        // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
         // 请求前的请求拦截操作
         const requestConfig = (requestInterceptors === null || requestInterceptors === void 0 ? void 0 : requestInterceptors(_config)) || _config;
+        const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path;
         const request = adapter(url, requestConfig).then((response) => {
-            msgHandle.setup(response);
+            msgHandle.setup();
             const data = response.data;
             if (requestConfig.responseType === 'blob') {
                 // axios blob数据转为url,保持和uniRequest一致
@@ -233,7 +237,13 @@ class Http {
             if (transformResponse) {
                 response.data = transformResponse(data);
             }
-            return this.interceptorResolve(response);
+            if (Reflect.has(response.data, 'success')) {
+                // 数据结果中有success属性，进行业务层消息拦截
+                return this.interceptorResolve(response);
+            }
+            else {
+                return response;
+            }
         });
         Promise.resolve(request)
             .catch((err) => {
@@ -401,22 +411,6 @@ function pagesExtend(res, Info) {
 }
 
 class Resource extends Http {
-    constructor(name = '', config) {
-        super(config);
-        /**
-         * 业务请求前缀，默认使用全局配置;
-         * 通过继承生成自定类时，可以指定该属性实现多服务器请求
-         * */
-        this.basePath = '';
-        const { serverUrl = '', rootPath = '' } = new.target.options;
-        this.basePath = serverUrl + (name.startsWith('/') ? name : `${rootPath}/${name}`);
-        // this.basePath += this.basePath.endsWith('/') ? '' : '/'
-    }
-    request(path, config) {
-        // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
-        const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path;
-        return super.request(url, config);
-    }
     /** 查询分页列表 */
     // getPageList(param?: Obj) {
     //   return super.post<PagesResult>('page', param)

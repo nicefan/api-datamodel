@@ -16,5 +16,5 @@ interface DefOptions {
   /** 请求前拦截处理 */
   requestInterceptors?: (config: RequestConfig) => RequestConfig
   /** 定义业务请求数据处理逻辑 */
-  transformResponse?: (result: Obj) => {code: number, message: string, data: Obj}
+  transformResponse?: (result: Obj) => {code: number, message: string, data: Obj, success: boolean}
 }

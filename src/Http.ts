@@ -10,9 +10,14 @@ class Http {
 
   protected requestConfig: RequestConfig = {}
 
-  constructor(config?: RequestConfig) {
-    new.target.options = {...defaultOptions, ...new.target.options}
-    config && this.setDefault(config)
+  private basePath = ''
+  private options
+  constructor(path:string, config?: DefOptions) {
+    this.options = {...defaultOptions, ...new.target.options, ...config}
+
+    // config && this.setDefault(config)
+    const {serverUrl='', rootPath=''} = this.options
+    this.basePath = serverUrl + (!path ?  rootPath : path.startsWith('/') ? path : `${rootPath}/${path}`)
   }
 
   protected setDefault(config: RequestConfig) {
@@ -65,20 +70,22 @@ class Http {
     })
   }
 
-  request<R = any>(url: string, config: RequestConfig = {}) {
-    const {adapter, defRequestConfig, requestInterceptors, transformResponse} = (this.constructor as typeof Http).options
+  request<R = any>(path: string, config: RequestConfig = {}) {
+    const {adapter, defRequestConfig, requestInterceptors, transformResponse} = this.options
     if (!adapter) {
       throw new Error('request对象暂未定义，请先初始化！')
     }
+    // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
     const {backendLoad, silent, errMessageMode, filename, ..._config} = merge({}, defRequestConfig, this.requestConfig, config)
 
     const msgHandle = new MessageHandle({backendLoad, silent, errMessageMode})
     this.setMessage = msgHandle.setMessage.bind(msgHandle)
-    // 全局配置-> 业务配置 -> 实例配置 -> 请求配置 
     // 请求前的请求拦截操作
     const requestConfig = requestInterceptors?.(_config) || _config
+    const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path
+
     const request = adapter(url, requestConfig).then((response) => {
-      msgHandle.setup(response)
+      msgHandle.setup()
 
       const data = response.data
       if (requestConfig.responseType === 'blob') {
@@ -92,7 +99,12 @@ class Http {
       if (transformResponse) {
         response.data = transformResponse(data)
       }
-      return this.interceptorResolve(response)
+      if (Reflect.has(response.data, 'success')) {
+        // 数据结果中有success属性，进行业务层消息拦截
+        return this.interceptorResolve(response)
+      } else {
+        return response
+      }
     })
 
     Promise.resolve(request)

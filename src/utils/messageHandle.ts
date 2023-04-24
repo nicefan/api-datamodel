@@ -11,20 +11,23 @@ interface HandleOptions {
 }
 export default class Handle {
   /** 手动设置消息数据 */
-  private _md: MessageData
+  private _md?: MessageData
   private _orginData?: any
 
   constructor(private _options: HandleOptions = {}) {
-    const {backendLoad, silent, errMessageMode} = _options
-    this._md = { errMessageMode }
+    const {backendLoad, silent} = _options
    if (!backendLoad && !silent) taskStack.start()
   }
 
   private isInit = false
 
-  setup(data: any) {
+  setup(errData?: any) {
     if (this._options.silent) return
-    this._orginData = data
+    if (errData) {
+      const { code, message } = errData
+      errData.message = this.formatError(code, message)
+      this._orginData = errData
+    }
   
     if (this.isInit) return
     this.isInit = true
@@ -38,22 +41,19 @@ export default class Handle {
   /** 替换消息，消息类型按请求状态，空字符串将取消显示后台消息 */
   setMessage(msgData: MessageData | string): void {
     if (!msgData) {
-      this._md = { code: 0, message: '' }
+      this._md = undefined
     } else if (typeof msgData === 'string') {
-      this._md.message = msgData
+      this._md = { ...this._md, message: msgData }
     } else {
       this._md = { ...this._md, ...msgData }
     }
   }
 
   private handle() {
-    const { code, message, success } = this._orginData
-    let msgData = {}
-    if (!success) {
-      const _message = this.formatError(code, message)
-      msgData = {...this._orginData, type:'error', message: _message, ...this._md }
-    } else if (typeof message === 'string') {
-      msgData = {...this._orginData, type: 'success', ...this._md}
+    let msgData
+    if (this._orginData || this._md) {
+      const type = this._md?.success? 'success' : 'error'
+      msgData = { type, errMessageMode: this._options.errMessageMode, ...this._orginData, ...this._md }
     }
 
     if (!this._options.backendLoad) {

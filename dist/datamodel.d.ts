@@ -26,16 +26,17 @@ interface UniFormData {
 export declare class Http {
     protected static options:DefOptions;
     protected defaultConfig: RequestConfig;
-    /** 请求数据拦截，在子类实现 */
+    /** 请求数据拦截 */
     protected interceptorResolve(data: any): any;
     /** 请求返回后可用于处理消息提示 */
     setMessage(msgData: MessageData | string): void;
-    constructor(config?: RequestConfig);
+    constructor(name?:ModuleName<S>, config?: DefOptions);
     protected setDefault(config: RequestConfig): void;
     post<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
     get<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
     put<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
     delete<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
+    /** 定义业务请求数据处理逻辑 */
     request<T = any>(url: string, config?: RequestConfig): Promise<T>;
 }
 
@@ -174,10 +175,6 @@ declare class Resource<S extends string = string> extends Http {
     static create: ResCreate;
     static factory: ResFactory;
 
-    constructor(name?:ModuleName<S>, config?: RequestConfig);
-
-    /** 定义业务请求数据处理逻辑 */
-    request<T = any>(url:string, config: RequestConfig): Promise<T>;
 
     /** formData表单格式上传文件 */
     upload(apiName: string, data: FormData | UniFormData, config?: RequestConfig): Promise<any>;
