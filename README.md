@@ -16,7 +16,7 @@ yarn add api-datamodel
 
 ```ts
 import axios from 'axios'
-import { createServer, setLoadingServe } from 'api-datamodel'
+import { Http, setLoadingServe, defineConfig } from 'api-datamodel'
 import { message as showMessage, Modal } from 'ant-design-vue';
 
 const key = '_LOADINGMESSAGE_'
@@ -44,14 +44,14 @@ setLoadingServe({
   },
 });
 
-/** 创建一个请求服务类 */
-const ApiServer = createServer({
+/** 定义配置 */
+const commonConfig = defineConfig({
   // 配置请求适配器（必须）
   adapter: axios,
-  // 请求服务地址，一般用于移动端
-  serverUrl: '', 
-  // 请求地址前缀，对应反向代理配置
-  rootPath: '/api',
+  // 请求服务地址或反向代理前缀
+  serverUrl: '/api', 
+  // 请求地址前缀，对应不同业务来源
+  rootPath: '',
   // 拦截请求返回数据，处理成标准数据格式返回，用于自动消息处理
   transformResponse(resultData) {
     const { code, msg, data } = resultData;
@@ -72,10 +72,14 @@ const ApiServer = createServer({
     timeout: 30000,
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
   },
-});
+})
 
-// 定义一个请求实例工厂方法
-const createApi = ApiServer.create.bind(ApiServer)
+/** 创建一个请求服务生成方法 */
+const createApi = Http.factory({
+  ...commonConfig,
+  // 覆盖配置
+  rootPath: '/system',
+});
 
 export { createApi }
 ```

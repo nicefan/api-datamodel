@@ -1,8 +1,13 @@
 import { defaultOptions } from './service'
+import factory, { create } from './utils/ResFactory'
 import MessageHandle from './utils/messageHandle'
 import merge from 'lodash/merge'
 
 class Http {
+  /** 工厂模式快速创建实例 */
+  static create = create
+  static factory = factory
+  static ERROR = new TypeError('Api instance undefined!')
   protected static options:Partial<DefOptions> = {}
 
   /** 请求返回后可用于处理消息提示 */
@@ -12,7 +17,9 @@ class Http {
 
   private basePath = ''
   private options
-  constructor(path:string, config?: DefOptions) {
+  constructor(arg1?:string | DefOptions, arg2?: DefOptions) {
+    const path = typeof arg1 === 'string' ? arg1 : ''
+    const config = typeof arg1 === 'object' ? arg1: arg2
     this.options = {...defaultOptions, ...new.target.options, ...config}
 
     // config && this.setDefault(config)
@@ -27,14 +34,13 @@ class Http {
   /** 请求数据消息处理 */
   protected interceptorResolve(response) {
     const {code, message, data, success} = response.data || {}
-    if (code === 'undefined') {
+    if (success === 'undefined' && code === 'undefined' ) {
       return response.data
-    }
-    else if (success) {
-      this.setMessage({ code, message, success })
-      return data
-    } else {
+    } else if (success === false) {
       return Promise.reject({ ...response, code, message, setMessage: this.setMessage })
+    } else {
+      this.setMessage({ code, message })
+      return data
     }
   }
 
@@ -99,17 +105,12 @@ class Http {
       if (transformResponse) {
         response.data = transformResponse(data)
       }
-      if (Reflect.has(response.data, 'success')) {
-        // 数据结果中有success属性，进行业务层消息拦截
-        return this.interceptorResolve(response)
-      } else {
-        return response
-      }
+      return this.interceptorResolve(response)
     })
 
     Promise.resolve(request)
       .catch((err) => {
-        const code = err?.status || err?.code || -1
+        const code = err?.code || err?.status || -1
         msgHandle.setup({ ...err, code })
       })
       .then((data) => {})

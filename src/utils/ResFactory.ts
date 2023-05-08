@@ -21,17 +21,17 @@ function mixins(instance: Obj, methods: Obj = {}) {
   }
 }
 
-export function create<R, T extends Obj<keyof R> | Obj>(this: new (...arg: any) => R, name: string, methods?: ParamMothods<T, R>) {
-  const res = new this(name)
+export function create<R extends Obj, T extends Obj<keyof R> | Obj>(this: new (...arg: any) => R, name: string, methods?: ParamMothods<T, R>, config?: DefOptions) {
+  const res = new this(name, config)
   mixins(res, methods)
 
   return res as MixTypes<T, R>
 }
 
 type BindCreate<R> = <T extends Obj<keyof R> | Obj>(name: string, methods?: ParamMothods<T, R>) => MixTypes<T, R>
-export default function factory<R>(this: new (...arg: any) => R) {
+export default function factory<R extends Obj>(this: new (...arg: any) => R, config?: DefOptions) {
   const _this = this
-  return function (...args) {
-    return create.apply(_this, args)
+  return function (name, methods) {
+    return create.apply(_this, [name, methods, config])
   } as BindCreate<R>
 }

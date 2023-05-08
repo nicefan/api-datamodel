@@ -1,5 +1,5 @@
 /*!
-  * api-datamodel v0.4.0
+  * api-datamodel v0.4.2
   * (c) 2023 范阳峰 covien@msn.com
   * @license MIT
   */
@@ -42,6 +42,30 @@ function __rest(s, e) {
                 t[p[i]] = s[p[i]];
         }
     return t;
+}
+
+function mixins(instance, methods = {}) {
+    for (const key of Object.keys(methods)) {
+        let method = methods[key];
+        if (typeof method === 'string') {
+            const target = Reflect.get(instance, method);
+            if (!target)
+                break;
+            method = (param) => Reflect.apply(target, instance, [key, param]);
+        }
+        Reflect.set(instance, key, method.bind(instance));
+    }
+}
+function create(name, methods, config) {
+    const res = new this(name, config);
+    mixins(res, methods);
+    return res;
+}
+function factory(config) {
+    const _this = this;
+    return function (name, methods) {
+        return create.apply(_this, [name, methods, config]);
+    };
 }
 
 var taskStack = (function () {
@@ -124,8 +148,8 @@ class Handle {
             return;
         if (errData) {
             const { code, message } = errData;
-            errData.message = this.formatError(code, message);
-            this._orginData = errData;
+            const _message = this.formatError(code, message);
+            this._orginData = Object.assign(Object.assign({}, errData), { type: 'error', message: _message, errMessageMode: this._options.errMessageMode });
         }
         if (this.isInit)
             return;
@@ -148,11 +172,9 @@ class Handle {
         }
     }
     handle() {
-        var _a;
         let msgData;
         if (this._orginData || this._md) {
-            const type = ((_a = this._md) === null || _a === void 0 ? void 0 : _a.success) ? 'success' : 'error';
-            msgData = Object.assign(Object.assign({ type, errMessageMode: this._options.errMessageMode }, this._orginData), this._md);
+            msgData = Object.assign(Object.assign({ type: 'success' }, this._orginData), this._md);
         }
         if (!this._options.backendLoad) {
             taskStack.complete(msgData);
@@ -184,9 +206,11 @@ class Handle {
 }
 
 class Http {
-    constructor(path, config) {
+    constructor(arg1, arg2) {
         this.requestConfig = {};
         this.basePath = '';
+        const path = typeof arg1 === 'string' ? arg1 : '';
+        const config = typeof arg1 === 'object' ? arg1 : arg2;
         this.options = Object.assign(Object.assign(Object.assign({}, defaultOptions), new.target.options), config);
         // config && this.setDefault(config)
         const { serverUrl = '', rootPath = '' } = this.options;
@@ -198,15 +222,15 @@ class Http {
     /** 请求数据消息处理 */
     interceptorResolve(response) {
         const { code, message, data, success } = response.data || {};
-        if (code === 'undefined') {
+        if (success === 'undefined' && code === 'undefined') {
             return response.data;
         }
-        else if (success) {
-            this.setMessage({ code, message, success });
-            return data;
+        else if (success === false) {
+            return Promise.reject(Object.assign(Object.assign({}, response), { code, message, setMessage: this.setMessage }));
         }
         else {
-            return Promise.reject(Object.assign(Object.assign({}, response), { code, message, setMessage: this.setMessage }));
+            this.setMessage({ code, message });
+            return data;
         }
     }
     post(url, data, config = {}) {
@@ -247,48 +271,22 @@ class Http {
             if (transformResponse) {
                 response.data = transformResponse(data);
             }
-            if (Reflect.has(response.data, 'success')) {
-                // 数据结果中有success属性，进行业务层消息拦截
-                return this.interceptorResolve(response);
-            }
-            else {
-                return response;
-            }
+            return this.interceptorResolve(response);
         });
         Promise.resolve(request)
             .catch((err) => {
-            const code = (err === null || err === void 0 ? void 0 : err.status) || (err === null || err === void 0 ? void 0 : err.code) || -1;
+            const code = (err === null || err === void 0 ? void 0 : err.code) || (err === null || err === void 0 ? void 0 : err.status) || -1;
             msgHandle.setup(Object.assign(Object.assign({}, err), { code }));
         })
             .then((data) => { });
         return request;
     }
 }
+/** 工厂模式快速创建实例 */
+Http.create = create;
+Http.factory = factory;
+Http.ERROR = new TypeError('Api instance undefined!');
 Http.options = {};
-
-function mixins(instance, methods = {}) {
-    for (const key of Object.keys(methods)) {
-        let method = methods[key];
-        if (typeof method === 'string') {
-            const target = Reflect.get(instance, method);
-            if (!target)
-                break;
-            method = (param) => Reflect.apply(target, instance, [key, param]);
-        }
-        Reflect.set(instance, key, method.bind(instance));
-    }
-}
-function create(name, methods) {
-    const res = new this(name);
-    mixins(res, methods);
-    return res;
-}
-function factory() {
-    const _this = this;
-    return function (...args) {
-        return create.apply(_this, args);
-    };
-}
 
 let _interceptor;
 /**
@@ -450,24 +448,20 @@ class Resource extends Http {
         return new (pagesExtend(queryMethod.bind(this), Item))(defParam);
     }
 }
-/** 工厂模式快速创建实例 */
-Resource.create = create;
-Resource.factory = factory;
-Resource.ERROR = new TypeError('Api instance undefined!');
 
 const defaultOptions = {
-    defRequestConfig: {
-        timeout: 50000
-    },
-    // transformResponse(resultData) {
-    //   const { code, message, data } = resultData
-    //   return {
-    //     code,
-    //     message: message === 'SUCCESS' ? '' : message,
-    //     data,
-    //     success: code === 0 || code === 200
-    //   }
-    // }
+// defRequestConfig: {
+//   timeout: 50000
+// },
+// transformResponse(resultData) {
+//   const { code, message, data } = resultData
+//   return {
+//     code,
+//     message: message === 'SUCCESS' ? '' : message,
+//     data,
+//     success: code === 0 || code === 200
+//   }
+// }
 };
 let _loadingServe;
 /** loading服务配置 */

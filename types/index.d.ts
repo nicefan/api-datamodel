@@ -14,7 +14,6 @@ type Cls<T = any> = new (...args: any[]) => T
 type Fn<T = any> = (...args: any) => T
 type ErrorMessageMode =  'none'| 'message' |'modal'
 interface MessageData {
-  success?: boolean
   code?: number | string
   message?: string
   /** 消息类型 */

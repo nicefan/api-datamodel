@@ -24,13 +24,18 @@ interface UniFormData {
 }
 
 export declare class Http {
+    /** 工厂模式快速创建实例 */
+    static create: ResCreate;
+    static factory: ResFactory;
     protected static options:DefOptions;
+    private options:DefOptions;
     protected defaultConfig: RequestConfig;
     /** 请求数据拦截 */
     protected interceptorResolve(data: any): any;
     /** 请求返回后可用于处理消息提示 */
     setMessage(msgData: MessageData | string): void;
-    constructor(name?:ModuleName<S>, config?: DefOptions);
+    constructor(config?: DefOptions);
+    constructor(name:ModuleName<S>, config?: DefOptions);
     protected setDefault(config: RequestConfig): void;
     post<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
     get<T = any>(url: string, data?: Obj, config?: RequestConfig): Promise<T>;
@@ -52,9 +57,25 @@ declare type MixTypes<T, R> = R & {
 
 type ModuleName<T extends string> = T extends `${string}/` ? never : T
 
-declare type ResCreate = <R, S extends string, T extends Obj<keyof R> | Obj>(this: new (...arg: any) => R, name: ModuleName<S>, methods?: ParamMothods<T, R>)=> MixTypes<T, R> ;
-declare type BindCreate<R> = <S extends string, T extends Obj<keyof R> | Obj>( name: ModuleName<S>, methods?: ParamMothods<T, R>) => MixTypes<T, R>;
-declare type ResFactory = <R>(this: new (...arg: any) => R)=> BindCreate<R>;
+declare type ResCreate = <R, S extends string, T extends Obj<keyof R> | Obj>(this: new (...arg: any) => R, name?: ModuleName<S>, methods?: ParamMothods<T, R>, config?: DefOptions)=> MixTypes<T, R> ;
+declare type BindCreate<R> = <S extends string, T extends Obj<keyof R> | Obj>( name?: ModuleName<S>, methods?: ParamMothods<T, R>, config?:DefOptions) => MixTypes<T, R>;
+declare type ResFactory = <R>(this: new (...arg: any) => R, config?:DefOptions)=> BindCreate<R>;
+declare class Resource<S extends string = string> extends Http {
+
+
+    /** formData表单格式上传文件 */
+    upload(apiName: string, data: FormData | UniFormData, config?: RequestConfig): Promise<any>;
+    /** 二进制流文件下载。
+     * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
+     **/
+    downloadFile(apiName: string, config?: RequestConfig): Promise<any>;
+    // getFile(apiName: string, param?: Obj, filename?: string): Promise<any>;
+    /** 创建一个分页列表类 */
+    makePagesClass<T, Qu extends Obj = Obj>(Info?: Cls<T>, methodName?: string): Pages<Qu, T>;
+    /** 快速创建一个无类型分页数据列表实例 */
+    createPagesInstance<Param extends Obj = Obj, T = Obj>(defParam?: Obj, method?: Fn, Item?: Cls<T>): List<Param, T>;
+}
+
 
 // declare type ItemContructor<T> = new (...arg: any[]) => T;
 // declare type RequestMethod = (param: Obj) => Promise<any>;
@@ -169,25 +190,6 @@ declare class Base<R extends Obj = Resource> {
 export declare function infoExtend<I, R extends Resource, T extends typeof Base>(this:T | void, DefaultData: Cls<I>, res?: R | string):Ibase<T, I, R>;
 type BindInfo<T extends typeof Base> = <I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) => Ibase<T, I, R>
 export declare function BaseFactory<T extends typeof Base>(this: T): BindInfo<T>
-
-declare class Resource<S extends string = string> extends Http {
-    /** 工厂模式快速创建实例 */
-    static create: ResCreate;
-    static factory: ResFactory;
-
-
-    /** formData表单格式上传文件 */
-    upload(apiName: string, data: FormData | UniFormData, config?: RequestConfig): Promise<any>;
-    /** 二进制流文件下载。
-     * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
-     **/
-    downloadFile(apiName: string, config?: RequestConfig): Promise<any>;
-    getFile(apiName: string, param?: Obj, filename?: string): Promise<any>;
-    /** 创建一个分页列表类 */
-    makePagesClass<T, Qu extends Obj = Obj>(Info?: Cls<T>, methodName?: string): Pages<Qu, T>;
-    /** 快速创建一个无类型分页数据列表实例 */
-    createPagesInstance<Param extends Obj = Obj, T = Obj>(defParam?: Obj, method?: Fn, Item?: Cls<T>): List<Param, T>;
-}
 
 /** 返回请求并缓存的数据 */
 export declare function getDataCache<T extends Obj = Obj>(name: string, request: Fn<Promise<any>>, keyField?: string): CacheResult<T>;

@@ -1,13 +1,7 @@
 import Http from './Http'
-import factory, { create } from './utils/ResFactory'
 import { pagesExtend } from './BaseList'
 import {infoExtend} from './BaseInfo'
 class Resource extends Http {
-  /** 工厂模式快速创建实例 */
-  static create = create
-  static factory = factory
-  static ERROR = new TypeError('Api instance undefined!')
-
 
   /** 查询分页列表 */
   // getPageList(param?: Obj) {

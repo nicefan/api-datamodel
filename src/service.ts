@@ -2,9 +2,9 @@ import merge from 'lodash/merge'
 import Resource from './Resource'
 
 export const defaultOptions: Partial<DefOptions> = {
-  defRequestConfig: {
-    timeout: 50000
-  },
+  // defRequestConfig: {
+  //   timeout: 50000
+  // },
   // transformResponse(resultData) {
   //   const { code, message, data } = resultData
   //   return {

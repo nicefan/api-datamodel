@@ -25,8 +25,8 @@ export default class Handle {
     if (this._options.silent) return
     if (errData) {
       const { code, message } = errData
-      errData.message = this.formatError(code, message)
-      this._orginData = errData
+      const _message = this.formatError(code, message)
+      this._orginData = {...errData, type: 'error', message: _message, errMessageMode: this._options.errMessageMode}
     }
   
     if (this.isInit) return
@@ -52,8 +52,7 @@ export default class Handle {
   private handle() {
     let msgData
     if (this._orginData || this._md) {
-      const type = this._md?.success? 'success' : 'error'
-      msgData = { type, errMessageMode: this._options.errMessageMode, ...this._orginData, ...this._md }
+      msgData = { type: 'success', ...this._orginData, ...this._md }
     }
 
     if (!this._options.backendLoad) {
