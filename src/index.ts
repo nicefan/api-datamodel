@@ -4,7 +4,7 @@
  */
 
 export { serviceInit, setLoadingServe, createServer, setGlobalConfig, defineConfig } from './service'
-export { getDataCache } from './dataCache'
+export { getDataCache, CacheResult, clearAllCache, clearDataCache } from './dataCache'
 /**
  * 标准http请求类
  */

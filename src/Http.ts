@@ -34,7 +34,7 @@ class Http {
   /** 请求数据消息处理 */
   protected interceptorResolve(response) {
     const {code, message, data, success} = response.data || {}
-    if (success === 'undefined' && code === 'undefined' ) {
+    if (success === undefined && code === undefined ) {
       return response.data
     } else if (success === false) {
       return Promise.reject({ ...response, code, message, setMessage: this.setMessage })
@@ -93,14 +93,10 @@ class Http {
     const request = adapter(url, requestConfig).then((response) => {
       msgHandle.setup()
 
-      const data = response.data
       if (requestConfig.responseType === 'blob') {
-        // axios blob数据转为url,保持和uniRequest一致
-        if (data.size) {
-          return window.URL.createObjectURL(data)
-        }
-        return data
+        return response
       } 
+      const data = response.data
       // 返回数据格式化处理
       if (transformResponse) {
         response.data = transformResponse(data)

@@ -1,6 +1,6 @@
 import Http from './Http'
 import { pagesExtend } from './BaseList'
-import {infoExtend} from './BaseInfo'
+import { infoExtend } from './BaseInfo'
 class Resource extends Http {
 
   /** 查询分页列表 */
@@ -22,10 +22,18 @@ class Resource extends Http {
    * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
    **/
   downloadFile(apiName: string, config?: RequestConfig) {
-    return this.request(apiName,{
+    return this.request(apiName, {
       responseType: 'blob',
-      method: 'POST',
+      method: 'GET',
       ...config,
+    }).then(({ data, headers }) => {
+      const str = headers?.['content-disposition'] || ''
+      const filename: string = str.match(/filename=(\S*?)(;|$)/)[1]
+      // uniRequest中data直接返回ObjectURL
+      return {
+        filename,
+        data,
+      }
     })
   }
 

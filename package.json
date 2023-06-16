@@ -1,6 +1,6 @@
 {
   "name": "api-datamodel",
-  "version": "0.4.2",
+  "version": "0.4.6",
   "author": {
     "name": "nicefan",
     "email": "covien@msn.com"
@@ -26,6 +26,6 @@
     "rollup": "^2.56.2",
     "tsc": "^2.0.3",
     "tslib": "^2.3.1",
-    "typescript": "^4.3.5"
+    "typescript": "^4.9.5"
   }
 }

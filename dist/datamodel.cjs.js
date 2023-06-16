@@ -1,5 +1,5 @@
 /*!
-  * api-datamodel v0.4.2
+  * api-datamodel v0.4.6
   * (c) 2023 范阳峰 covien@msn.com
   * @license MIT
   */
@@ -222,7 +222,7 @@ class Http {
     /** 请求数据消息处理 */
     interceptorResolve(response) {
         const { code, message, data, success } = response.data || {};
-        if (success === 'undefined' && code === 'undefined') {
+        if (success === undefined && code === undefined) {
             return response.data;
         }
         else if (success === false) {
@@ -259,14 +259,10 @@ class Http {
         const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path;
         const request = adapter(url, requestConfig).then((response) => {
             msgHandle.setup();
-            const data = response.data;
             if (requestConfig.responseType === 'blob') {
-                // axios blob数据转为url,保持和uniRequest一致
-                if (data.size) {
-                    return window.URL.createObjectURL(data);
-                }
-                return data;
+                return response;
             }
+            const data = response.data;
             // 返回数据格式化处理
             if (transformResponse) {
                 response.data = transformResponse(data);
@@ -431,7 +427,15 @@ class Resource extends Http {
      * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
      **/
     downloadFile(apiName, config) {
-        return this.request(apiName, Object.assign({ responseType: 'blob', method: 'POST' }, config));
+        return this.request(apiName, Object.assign({ responseType: 'blob', method: 'GET' }, config)).then(({ data, headers }) => {
+            const str = (headers === null || headers === void 0 ? void 0 : headers['content-disposition']) || '';
+            const filename = str.match(/filename=(\S*?)(;|$)/)[1];
+            // uniRequest中data直接返回ObjectURL
+            return {
+                filename,
+                data,
+            };
+        });
     }
     /** 创建一个数据实体类 */
     // makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>) {
@@ -502,65 +506,118 @@ function createServer(config) {
 }
 
 // 用户数据缓存
-const store = {};
+const store = new Map();
 /** 请求并缓存数据 */
 function getDataCache(name, request, keyField) {
-    const cache = store[name];
+    let cache = store.get(name);
     if (!cache) {
-        return (store[name] = new CacheResult(name, request, keyField));
-    }
-    else if (cache.status === 'ready') {
-        cache.load(request);
+        cache = new CacheResult(name, request, keyField);
+        store.set(name, cache);
     }
     return cache;
 }
-function checkType(item, key = 'id') {
-    if (typeof item === 'object') {
-        return ('value' in item && 'label' in item) ? 'dict' : key in item ? 'record' : undefined;
+/** 清理缓存，刷新数据, */
+function clearDataCache(name) {
+    store.delete(name);
+}
+function clearAllCache() {
+    store.clear();
+}
+function checkType(item, key = "id") {
+    if (typeof item === "object") {
+        return "value" in item && "label" in item
+            ? "dict"
+            : key in item
+                ? "record"
+                : undefined;
+    }
+}
+function buildMap(list, keyField = "id") {
+    const dataType = checkType(list === null || list === void 0 ? void 0 : list[0]);
+    if (dataType && list.length > 0) {
+        const map = {};
+        for (const item of list) {
+            if (dataType === "record") {
+                if (item[keyField])
+                    map[keyField] = item;
+            }
+            else if (dataType === "dict") {
+                const { value, label } = item;
+                map[value] = label;
+            }
+        }
+        return map;
     }
 }
 class CacheResult {
-    constructor(name, request, _key) {
+    constructor(name, request, key) {
         this.name = name;
-        this._key = _key;
-        this.list = [];
-        this._status = 'ready';
-        this.promise = this.load(request);
+        let status = "ready";
+        let delay = false;
+        const reload = () => {
+            return delay ? this._promise : load();
+        };
+        const load = () => {
+            status = "pending";
+            delay = true;
+            return (this._promise = request(name)
+                .then((res) => {
+                status = "loaded";
+                const info = {
+                    status,
+                    res,
+                    keyField: key,
+                    reload,
+                };
+                return info;
+            })
+                .catch((err) => {
+                status = "ready";
+                return { status, reload };
+            })).finally(() => {
+                setTimeout(() => {
+                    delay = false;
+                }, 1000);
+            });
+        };
+        load();
     }
-    load(request) {
-        this._status = 'pending';
-        return request().then((data) => {
-            this._status = 'loaded';
-            this._dataType = checkType(data === null || data === void 0 ? void 0 : data[0]);
-            return (this.list = data || []);
-        }, () => (this._status = 'ready'));
+    reload() {
+        return this._promise.then(({ reload }) => {
+            return reload().then((result) => {
+                if (result.status === "loaded") {
+                    this._list = result.res;
+                    if (this._map)
+                        this.getMap();
+                }
+                return result;
+            });
+        });
     }
-    get status() {
-        return this._status;
+    getRecords() {
+        return this._promise
+            .then((result) => (result.status === "ready" ? this.reload() : result))
+            .then(({ res }) => {
+            // 取值时进行赋值，被vue代理时this对象为代理对象，可监测数据变化，在构造时this为原始对象，赋值不会响应。
+            this._list = res;
+            return this._list || [];
+        });
+    }
+    get records() {
+        this.getRecords();
+        return this._list || [];
+    }
+    getMap() {
+        return this._promise.then(({ res = [], keyField }) => {
+            if (!this._map) {
+                return (this._map = buildMap(res, keyField));
+            }
+            return this._map || {};
+        });
     }
     get map() {
-        if (!this._map && this._dataType && this.list.length > 0) {
-            const map = {};
-            for (const item of this.list) {
-                if (this._dataType === 'record') {
-                    const key = this._key || 'id';
-                    if (item[key])
-                        map[key] = item;
-                }
-                else if (this._dataType = 'dict') {
-                    const { value, label } = item;
-                    map[value] = label;
-                }
-            }
-            this._map = Object.freeze(map);
-        }
+        this.getMap();
         return this._map || {};
-    }
-    get value() {
-        return this.list;
-    }
-    then(callback) {
-        this.promise.then(callback);
     }
 }
 
@@ -805,8 +862,11 @@ function buildAdapter(frame) {
 exports.ApiResource = Resource;
 exports.BaseInfo = Base;
 exports.BaseList = List;
+exports.CacheResult = CacheResult;
 exports.Http = Http;
 exports.buildAdapter = buildAdapter;
+exports.clearAllCache = clearAllCache;
+exports.clearDataCache = clearDataCache;
 exports.createServer = createServer;
 exports.defineConfig = defineConfig;
 exports.getDataCache = getDataCache;
