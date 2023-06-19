@@ -3,8 +3,8 @@
  * @Autor: 范阳峰
  */
 
-export { serviceInit, setLoadingServe, createServer, setGlobalConfig, defineConfig } from './service'
-export { getDataCache, CacheResult, clearAllCache, clearDataCache } from './dataCache'
+export { serviceInit, setLoadingServe, setGlobalConfig, defineConfig } from './service'
+export { getDataCache, CacheResult, clearAllCache, clearDataCache, createCacheStore } from './dataCache'
 /**
  * 标准http请求类
  */

@@ -17,11 +17,11 @@ export type Ibase<T extends typeof Base, D, R extends Obj = Resource> = {
 }
 
 /** 创建一个基于当前实体类的分页列表类 */
-function makePagesClass<Para = Obj, T = Obj>(this: Cls<T>, method?: Fn<Promise<PagesResult>>) {
+function makePagesClass<Para extends Obj = Obj, T = Obj>(this: Cls<T>, method?: Fn<Promise<PagesResult>>) {
   return pagesExtend<Para, T>(method || this.prototype.res, this)
 }
 /** 快速创建一个分页数据列表实例 */
-function createPages<Para = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?: Fn<Promise<PagesResult>>) {
+function createPages<Para extends Obj = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?: Fn<Promise<PagesResult>>) {
   return (this.prototype.res as Resource).createPagesInstance<Para, T>(defParam, method, this)
 }
 
@@ -167,7 +167,7 @@ function decorator<T extends typeof Base, D extends Obj>(target: Cls<T>, default
 }
 
 
-function extend<I, R extends Resource, T extends typeof Base>(this:T | void, DefaultData: Cls<I>, res?: R | string) {
+function extend<I extends Obj, R extends Resource, T extends typeof Base>(this:T | void, DefaultData: Cls<I>, res?: R | string) {
   const _defaultData = new DefaultData()
   const _res = typeof res === 'string' ? new Resource(res) : res
   const _Super = (this && Object.getPrototypeOf(this) === Base) ? this : Base

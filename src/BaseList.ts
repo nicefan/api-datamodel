@@ -127,15 +127,15 @@ export default class List<P extends Obj = Obj, T = any> {
   }
 }
 
-export type Pages<P, I> = {
-    new <Para = P>(param?: Obj): List<Para, I>
+export type Pages<P extends Obj, I> = {
+    new <Para extends Obj = P>(param?: Obj): List<Para, I>
 }
 
 /** 分页查询类工厂方法
  * @param res 包含有getPageList方法的数据资源对象 或者指定查询请求方法
  * @param Info （可选）指定数据集合的实体类
  */
-export function pagesExtend<Para = Obj, I = Obj>(res: Obj | Fn<Promise<any>>, Info?: Cls<I>) {
+export function pagesExtend<Para extends Obj = Obj, I = Obj>(res: Obj | Fn<Promise<any>>, Info?: Cls<I>) {
   const _requestMethod = typeof res === 'function' ? res : res.getPageList.bind(res)
   class _Pages extends List<Para, I> {
     get _ItemConstructor() {

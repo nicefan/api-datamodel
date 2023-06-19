@@ -1,6 +1,7 @@
 node_modules
 .DS_Store
 temp
-dist-ssr
+dist
+dist_types
 *.local
 pnpm-lock.yaml

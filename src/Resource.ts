@@ -43,13 +43,13 @@ class Resource extends Http {
   // }
 
   /** 创建一个分页列表类 */
-  makePagesClass<T, Qu = Obj>(Info?: Cls<T>, methodName = 'page') {
+  makePagesClass<T, Qu extends Obj = Obj>(Info?: Cls<T>, methodName = 'page') {
     const queryMethod = (param: Obj) => this.post(methodName, param) as Promise<PagesResult>
     return pagesExtend<Qu, T>(queryMethod, Info)
   }
 
   /** 快速创建一个无类型分页数据列表实例 */
-  createPagesInstance<Param = Obj, T = Obj>(defParam?: Obj, method?: Fn, Item?: Cls<T>) {
+  createPagesInstance<Param extends Obj = Obj, T = Obj>(defParam?: Obj, method?: Fn, Item?: Cls<T>) {
     const queryMethod = method || this['getPageList'] || ((param: Obj) => this.post('page', param))
     return new (pagesExtend(queryMethod.bind(this), Item))<Param>(defParam)
   }

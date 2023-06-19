@@ -39,7 +39,7 @@ class User extends infoExtend(Def, 'user') {
     this.api.delete('id')
   }
 }
-class SubUser<Resource> extends BaseInfo<Resource> {
+class SubUser<Resource extends Obj> extends BaseInfo<Resource> {
   newfunc() {
 
   }

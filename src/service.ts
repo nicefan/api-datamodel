@@ -68,9 +68,9 @@ export function serviceInit(config) {
 }
 
 /** 创建一个请求服务 */
-export function createServer(config: DefOptions) {
-  class Server extends Resource{
-    protected static options = config
-  }
-  return Server
-}
+// export function createServer(config: DefOptions) {
+//   class Server extends Resource{
+//     protected static options = config
+//   }
+//   return Server
+// }
