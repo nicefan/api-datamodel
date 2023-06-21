@@ -1,10 +1,10 @@
+/// <reference types="../types" />
 /*
  * @Description: api数据模型化生成
  * @Autor: 范阳峰
  */
-
 export { serviceInit, setLoadingServe, setGlobalConfig, defineConfig } from './service'
-export { getDataCache, CacheResult, clearAllCache, clearDataCache, createCacheStore } from './dataCache'
+export * from './dataCache'
 /**
  * 标准http请求类
  */

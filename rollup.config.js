@@ -26,14 +26,12 @@ const tsPlugin = ts({
   // cacheRoot: path.resolve(__dirname, 'node_modules/.rts2_cache'),
   // tsconfigOverride: { compilerOptions: { declaration: false,declarationMap: false } }
 });
+
 const mainFile = "src/index.ts";
+
 const input = [mainFile, "src/dataCache.ts"];
-//   'index': mainFile,
-//   'cacheRequest': "src/dataCache.ts"
-// }
 
 const es = {
-  // input: mainFile,
   input,
   output: {
     banner,
@@ -48,10 +46,9 @@ const types = {
   input: [`${declarationDir}/index.d.ts`],
   output: [
     {
-      banner: `/// <reference types="../types" />`,
+      format: "es",
       dir: ".",
       entryFileNames: dir + "/[name].ts",
-      format: "es",
     },
   ],
   plugins: [dts()],

@@ -16,5 +16,5 @@
     "declarationMap": false,
     "lib": ["esnext", "dom"],
   },
-  "include": ["types","src/*"],
+  "include": ["types","src/*.ts"],
 }
