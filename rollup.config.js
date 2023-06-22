@@ -1,11 +1,16 @@
 import path from "path";
-import { terser } from "@rollup/plugin-terser";
+import { readFileSync } from 'node:fs';
+import terser from "@rollup/plugin-terser";
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import ts from "@rollup/plugin-typescript";
 import dts from "rollup-plugin-dts";
 
-const pkg = require("./package.json");
+const global = readFileSync(new URL('./src/types.d.ts', import.meta.url));
+
+const pkg = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url))
+);
 const name = pkg.name;
 const dir = "dist";
 const declarationDir = dir + "_types";
@@ -22,7 +27,7 @@ const tsPlugin = ts({
   outDir: dir,
   declarationDir: declarationDir,
   // check: true,
-  tsconfig: path.resolve(__dirname, "tsconfig.json"),
+  tsconfig: "./tsconfig.json",
   // cacheRoot: path.resolve(__dirname, 'node_modules/.rts2_cache'),
   // tsconfigOverride: { compilerOptions: { declaration: false,declarationMap: false } }
 });
@@ -46,6 +51,7 @@ const types = {
   input: [`${declarationDir}/index.d.ts`],
   output: [
     {
+      intro: global,
       format: "es",
       dir: ".",
       entryFileNames: dir + "/[name].ts",
