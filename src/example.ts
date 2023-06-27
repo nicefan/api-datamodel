@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import Resource from './Resource';
+import Resource from './Resource'
 import BaseInfo, { infoExtend } from './BaseInfo'
-import { pagesExtend} from './BaseList'
-import { getCipherInfo } from 'crypto';
+import { pagesExtend } from './BaseList'
+import { getCipherInfo } from 'crypto'
 
 const res = Resource.create('user', {
   getList: 'get',
@@ -11,7 +11,7 @@ const res = Resource.create('user', {
   },
   getInfo() {
     return this.post<Record<string, any>>('info')
-  }
+  },
 })
 
 class Def {
@@ -40,13 +40,11 @@ class User extends infoExtend(Def, 'user') {
   }
 }
 class SubUser<Resource extends Obj> extends BaseInfo<Resource> {
-  newfunc() {
-
-  }
+  newfunc() {}
 }
 const subFactory = SubUser.createFactory()
 
-class SSubUser extends subFactory(class { }) {
+class SSubUser extends subFactory(class {}) {
   test() {
     this.newfunc
     this.api.delete
@@ -79,9 +77,8 @@ interface QueryParam {
 }
 
 /** 继承扩展类 */
-class Pagess extends pagesExtend(res, Info) { }
+class Pagess extends pagesExtend(res, Info) {}
 const ax = new Pagess()
-
 
 /** 快速创建，不需要扩展 */
 const PagesEx = pagesExtend<QueryParam, Info>(res, Info)

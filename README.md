@@ -122,28 +122,38 @@ userApi.getPageList().then(data => {
 
 ## 缓存请求
 
-将字典类的数据请求进行缓存
+数据请求进行缓存
 
 ```ts
-import { createApi, getDataCache } from 'api-datamodel'
-const publicApi = createApi('/public', {
-    // 配置一个根据字典名称获取字典的方法
-    getDict(name: string) {
-        return getDataCache(name, () => this.get('dict/'+ name))
-    },
-})
+import { createCache } from 'api-datamodel'
+  export const getDeptCache = createCache({
+    request: deptApi.list, // 指定请求方法,应该是一个静态方法，如果绑定()=>xxx()的动态方法，需加上name属性。
+    // name: 'deptApi', // 可忽略，用于缓存唯一签名。
+    keyField: 'deptId', // 可忽略； 指定key字段，用于map对象生成，默认为'id'，
+    valueField: ''， // 可忽略； 指定value字段，此字段指定后，将自动将keyField字段定义为label，返回结果格试化为{id, value, label} 的字典类型。
+  });
 
-```
-
-`getDataCache` 方法返回 `CacheResult` 类型对象：
-
-| 属性    | 类型     | 说明                                                         |
-| ------- | -------- | ------------------------------------------------------------ |
-| status  | 只读属性 | 状态：`"pending" | "ready" | "loaded" `                      |
-| list    | 数组     | 数据请求完成异步进行填充                                     |
-| map     | 只读对象 | 根据返回数据识别生成value/label键值对，或以id为key的对象，可以通过第三个参数指定key字段 |
-| then    | 方法     | 传递回调方法获取原始返回数据                                 |
-| promise | 对象     | 请求生成的promise对象，可用于错误处理                        |
+  // 只需要简单缓存
+  export const getDict = createCache(dictApi.list);
+  // 使用
+  getDict('sex').result
+  ```
+### 缓存数据格式
+`createCache` 生成一个原请求方法的一个代理方法，参数与原方法一致，返回结果为 `CacheResult` 类型对象：
+  ```ts
+  interface CacheResult<T>{
+    /** 重新请求更新缓存 */
+    reload(): Promise<SyncData<T>>;
+    /** 请求结果数据 */
+    result: T | undefined;
+    /** 异步获取请求结果 */
+    getResult(): Promise<T | undefined>;
+    /** 请求结果键值对对象 */
+    map: DictMap<T>;
+    /** 异步获取请求结果键值对对象 */
+    getMap(): Promise<DictMap<T>>;
+  }
+  ```
 
 ## loading及消息提示
 
@@ -625,8 +635,8 @@ Info: 指定数据实体类， 将records中的每条数据都转换成一个实
  })
  class UserPages extends pagesExtend(userApi) {
       /** 导出当前查询记录 */
-   	export(filename?: string) {
-     	return userApi.downloadFile('export', { data: { ...this._defaultParam, ...this._param }, filename })
+   	export() {
+     	return userApi.downloadFile('export', { data: { ...this._defaultParam, ...this._param } })
    	}
  }
  export { UserPages }

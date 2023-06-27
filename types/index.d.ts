@@ -7,12 +7,12 @@
  */
 type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
 
-type HttpResponseType = 'blob' | 'json' | 'text' 
+type HttpResponseType = 'blob' | 'json' | 'text'
 
 type Obj<T = any> = Record<string, T>
 type Cls<T = any> = new (...args: any[]) => T
 type Fn<T = any> = (...args: any) => T
-type ErrorMessageMode =  'none'| 'message' |'modal'
+type ErrorMessageMode = 'none' | 'message' | 'modal'
 interface MessageData {
   code?: number | string
   message?: string
@@ -50,8 +50,6 @@ interface RequestConfig {
   silent?: boolean
   /** 错误提示方式 */
   errMessageMode?: ErrorMessageMode
-  /** 指定下载时保存的文件名 */
-  filename?: string
 }
 
 /** uni-app 上传文件的请求参数 */

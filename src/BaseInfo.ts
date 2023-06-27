@@ -1,6 +1,6 @@
 import cloneDeep from 'lodash/cloneDeep'
 import pick from 'lodash/pick'
-import Resource from './Resource';
+import Resource from './Resource'
 import { pagesExtend } from './BaseList'
 
 /**
@@ -17,12 +17,23 @@ export type Ibase<T extends typeof Base, D, R extends Obj = Resource> = {
 }
 
 /** 创建一个基于当前实体类的分页列表类 */
-function makePagesClass<Para extends Obj = Obj, T = Obj>(this: Cls<T>, method?: Fn<Promise<PagesResult>>) {
+function makePagesClass<Para extends Obj = Obj, T = Obj>(
+  this: Cls<T>,
+  method?: Fn<Promise<PagesResult>>
+) {
   return pagesExtend<Para, T>(method || this.prototype.res, this)
 }
 /** 快速创建一个分页数据列表实例 */
-function createPages<Para extends Obj = Obj, T = Obj>(this: Cls<T>, defParam?: Obj, method?: Fn<Promise<PagesResult>>) {
-  return (this.prototype.res as Resource).createPagesInstance<Para, T>(defParam, method, this)
+function createPages<Para extends Obj = Obj, T = Obj>(
+  this: Cls<T>,
+  defParam?: Obj,
+  method?: Fn<Promise<PagesResult>>
+) {
+  return (this.prototype.res as Resource).createPagesInstance<Para, T>(
+    defParam,
+    method,
+    this
+  )
 }
 
 class Base<R extends Obj = Resource> {
@@ -32,7 +43,9 @@ class Base<R extends Obj = Resource> {
   static createPages = createPages
 
   /** 实例默认属性值，必须通过子类实现 */
-  protected get defaultProps(){ return {}}
+  protected get defaultProps() {
+    return {}
+  }
 
   /** 实例请求操作源，可在子类继承实现 */
   protected get api(): R {
@@ -111,7 +124,7 @@ class Base<R extends Obj = Resource> {
 
   /** 实例构造时传的id,将调用此方法加载数据， */
   load(id: string) {
-    return this.api?.get(id).then(result => {
+    return this.api?.get(id).then((result) => {
       const data = this.onLoadAfter(result) || result
       this.reset(data)
       return data
@@ -150,7 +163,10 @@ class Base<R extends Obj = Resource> {
 }
 
 // 在原型链上添加属性
-function decorator<T extends typeof Base, D extends Obj>(target: Cls<T>, defaultProps: D) {
+function decorator<T extends typeof Base, D extends Obj>(
+  target: Cls<T>,
+  defaultProps: D
+) {
   for (const key of Object.keys(defaultProps)) {
     Object.defineProperty(target.prototype, key, {
       enumerable: true,
@@ -166,11 +182,14 @@ function decorator<T extends typeof Base, D extends Obj>(target: Cls<T>, default
   return target as Ibase<T, D>
 }
 
-
-function extend<I extends Obj, R extends Resource, T extends typeof Base>(this:T | void, DefaultData: Cls<I>, res?: R | string) {
+function extend<I extends Obj, R extends Resource, T extends typeof Base>(
+  this: T | void,
+  DefaultData: Cls<I>,
+  res?: R | string
+) {
   const _defaultData = new DefaultData()
   const _res = typeof res === 'string' ? new Resource(res) : res
-  const _Super = (this && Object.getPrototypeOf(this) === Base) ? this : Base
+  const _Super = this && Object.getPrototypeOf(this) === Base ? this : Base
   class _Info extends _Super {
     static api = _res
 
@@ -184,11 +203,14 @@ function extend<I extends Obj, R extends Resource, T extends typeof Base>(this:T
       return res
     }
   }
-  return (_Info as unknown) as Ibase<T, I, R>
+  return _Info as unknown as Ibase<T, I, R>
   // return decorator(Info, _defaultData)
 }
 
-type BindInfo<T extends typeof Base> = <I, R extends Resource>(DefaultData: Cls<I>, res?: R | string) => Ibase<T, I, R>
+type BindInfo<T extends typeof Base> = <I, R extends Resource>(
+  DefaultData: Cls<I>,
+  res?: R | string
+) => Ibase<T, I, R>
 function BaseFactory<T extends typeof Base>(this: T) {
   return extend.bind(this) as BindInfo<T>
 }

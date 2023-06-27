@@ -1,6 +1,6 @@
 {
   "name": "api-datamodel",
-  "version": "0.4.7",
+  "version": "0.4.9",
   "author": {
     "name": "nicefan",
     "email": "covien@msn.com"
@@ -14,20 +14,27 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "lint": "eslint . --fix --ignore-path .gitignore"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.2",
+    "@rollup/plugin-eslint": "^9.0.4",
     "@rollup/plugin-node-resolve": "^15.1.0",
     "@rollup/plugin-terser": "^0.4.3",
     "@rollup/plugin-typescript": "^11.1.1",
     "@types/lodash": "^4.14.195",
-    "@types/node": "^20.3.1",
+    "@types/node": "^20.3.2",
+    "@typescript-eslint/eslint-plugin": "^5.60.1",
+    "eslint": "^8.43.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
     "lodash": "^4.17.21",
-    "rollup": "^3.25.1",
+    "prettier": "2.8.8",
+    "rollup": "^3.25.3",
     "rollup-plugin-dts": "^5.3.0",
     "tsc": "^2.0.4",
-    "tslib": "^2.5.3",
+    "tslib": "^2.6.0",
     "typescript": "^5.1.3"
   }
 }

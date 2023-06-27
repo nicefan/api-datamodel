@@ -1,4 +1,4 @@
-import {getLoadingServe} from '../service'
+import { getLoadingServe } from '../service'
 export default (function () {
   let state: 'ready' | 'pending' | 'loading' = 'ready'
   /** pending请求次数 */
@@ -14,7 +14,7 @@ export default (function () {
    * 开始一个请求加入列队
    * @param {boolean} immed 不做延时，立即显示
    */
-  const start = function(immed = false) {
+  const start = function (immed = false) {
     if (state === 'ready') {
       pendNum = 1
       state = 'pending'
@@ -32,7 +32,7 @@ export default (function () {
     }
   }
 
-  const complete = function(data?: any) {
+  const complete = function (data?: any) {
     if (data?.message) msgData = data
     pendNum--
     if (state === 'ready') {
@@ -52,7 +52,7 @@ export default (function () {
     }
   }
   /** 加载完成显示的消息 */
-  const showMessage = function(data = msgData) {
+  const showMessage = function (data = msgData) {
     LoadingServe().close(data)
     msgData = undefined
     state = 'ready'

@@ -1,13 +1,12 @@
 import taskStack from './taskStack'
-import isPlainObject from 'lodash/isPlainObject'
 
 interface HandleOptions {
-    /** 后台加载，不显示loading等待框 */
-    backendLoad?: boolean
-    /** 静默请求，不显示loading及消息 */
-    silent?: boolean
-    /** 错误提示方式 */
-    errMessageMode?: ErrorMessageMode  
+  /** 后台加载，不显示loading等待框 */
+  backendLoad?: boolean
+  /** 静默请求，不显示loading及消息 */
+  silent?: boolean
+  /** 错误提示方式 */
+  errMessageMode?: ErrorMessageMode
 }
 export default class Handle {
   /** 手动设置消息数据 */
@@ -15,8 +14,8 @@ export default class Handle {
   private _orginData?: any
 
   constructor(private _options: HandleOptions = {}) {
-    const {backendLoad, silent} = _options
-   if (!backendLoad && !silent) taskStack.start()
+    const { backendLoad, silent } = _options
+    if (!backendLoad && !silent) taskStack.start()
   }
 
   private isInit = false
@@ -26,9 +25,14 @@ export default class Handle {
     if (errData) {
       const { code, message } = errData
       const _message = this.formatError(code, message)
-      this._orginData = {...errData, type: 'error', message: _message, errMessageMode: this._options.errMessageMode}
+      this._orginData = {
+        ...errData,
+        type: 'error',
+        message: _message,
+        errMessageMode: this._options.errMessageMode,
+      }
     }
-  
+
     if (this.isInit) return
     this.isInit = true
 
@@ -64,7 +68,7 @@ export default class Handle {
   }
 
   // 请求异常处理
-  private formatError(code?: string | number, _message='') {
+  private formatError(code?: string | number, _message = '') {
     let message = _message
 
     if (code === 401 || code === -2) {

@@ -6,15 +6,17 @@
  * @LastEditTime: 2021-08-17 18:34:34
  */
 
-export function buildAdapter<F extends Obj>(frame:F) {
-
-  function request(url:string, { params = {}, data = params, headers = {}, ...config }: RequestConfig) {
+export function buildAdapter<F extends Obj>(frame: F) {
+  function request(
+    url: string,
+    { params = {}, data = params, headers = {}, ...config }: RequestConfig
+  ) {
     const { 'content-type': type, ..._header } = headers
     if (data.filePath && type === 'multipart/form-data') {
       return _upload(url, data, _header)
     }
     if (config.responseType === 'blob') {
-      return _download( url, headers)
+      return _download(url, headers)
       // return fetch(new Request(baseURL + url, { headers }))
       // .then(response => response.blob())
     }
@@ -36,9 +38,19 @@ export function buildAdapter<F extends Obj>(frame:F) {
           } else {
             let err
             if (code === 426 && res.header.verifyfailurenum) {
-              err = { code, message: res.data.msg, verifyfailurenum: res.header.verifyfailurenum }
+              err = {
+                code,
+                message: res.data.msg,
+                verifyfailurenum: res.header.verifyfailurenum,
+              }
             } else {
-              err = { code, message: typeof res.data === 'string' ? res.data : res.data.msg || res.data.message }
+              err = {
+                code,
+                message:
+                  typeof res.data === 'string'
+                    ? res.data
+                    : res.data.msg || res.data.message,
+              }
             }
             reject(err)
           }
@@ -50,7 +62,11 @@ export function buildAdapter<F extends Obj>(frame:F) {
     })
   }
 
-  function _upload(url: string, { filePath, fileKey, ...formData }: Obj = {}, header: Obj) {
+  function _upload(
+    url: string,
+    { filePath, fileKey, ...formData }: Obj = {},
+    header: Obj
+  ) {
     return new Promise((resolve, reject) => {
       frame.uploadFile({
         url,
@@ -97,4 +113,3 @@ export function buildAdapter<F extends Obj>(frame:F) {
 
   return request
 }
-

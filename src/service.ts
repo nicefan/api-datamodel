@@ -35,7 +35,7 @@ export function getLoadingServe() {
 /** 初始化请求服务配置 */
 type InitConfig = {
   /** 请求适配器，包含有request方法的对象，如：axios */
-  adapter: Adapter,
+  adapter: Adapter
   /** 是否为跨平台框架,如：Taro,Uni */
   // isCorssFrame?:boolean,
   /** 不同环境的服务器地址或代理前缀 */
@@ -48,7 +48,7 @@ type InitConfig = {
  * @param config -{ adapter, defRequestConfig, loadingServe }
  * @param config.adapter 请求模块 如：axios
  */
-export function setGlobalConfig({loadingServe, ...options }: InitConfig) {
+export function setGlobalConfig({ loadingServe, ...options }: InitConfig) {
   if (loadingServe) {
     setLoadingServe(loadingServe)
   }

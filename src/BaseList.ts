@@ -1,6 +1,10 @@
 import Resource from './Resource'
 
-type Interceptor = (method: Fn<Promise<any>>, Params: Obj, res?: Resource) => Promise<PagesResult>
+type Interceptor = (
+  method: Fn<Promise<any>>,
+  Params: Obj,
+  res?: Resource
+) => Promise<PagesResult>
 let _interceptor: undefined | Interceptor
 /**
  * 分页列表类 <参数类型定义>
@@ -18,7 +22,7 @@ export default class List<P extends Obj = Obj, T = any> {
     return Promise.reject('request method not found!')
   }
   /** 默认请求参数 */
-  protected _defaultParam?: Obj ={}
+  protected _defaultParam?: Obj = {}
 
   /** 保存用户查询参数 */
   protected _param?: Obj = {}
@@ -49,7 +53,11 @@ export default class List<P extends Obj = Obj, T = any> {
 
   protected request() {
     this._status = 'loading'
-    const param = { ...this._defaultParam, ...this._param, page: this.pageParam }
+    const param = {
+      ...this._defaultParam,
+      ...this._param,
+      page: this.pageParam,
+    }
     return this._requestMethod(param).then((result) => {
       return this.update(result)
     })
@@ -94,7 +102,9 @@ export default class List<P extends Obj = Obj, T = any> {
     this.pageSize = pageSize
     this.total = total
     this._status = current < pageCount ? 'more' : 'noMore'
-    this.records = !this._ItemConstructor ? records : records.map((item: Obj) => new (this._ItemConstructor as Cls<T>)(item))
+    this.records = !this._ItemConstructor
+      ? records
+      : records.map((item: Obj) => new (this._ItemConstructor as Cls<T>)(item))
     return this.records
   }
 
@@ -118,7 +128,7 @@ export default class List<P extends Obj = Obj, T = any> {
   loadMore() {
     if (this.current < this.pageCount) {
       const data = this.records
-      return this.goPage(this.current + 1).then(records => {
+      return this.goPage(this.current + 1).then((records) => {
         this.records = data.concat(records)
       })
     } else {
@@ -128,22 +138,32 @@ export default class List<P extends Obj = Obj, T = any> {
 }
 
 export type Pages<P extends Obj, I> = {
-    new <Para extends Obj = P>(param?: Obj): List<Para, I>
+  new <Para extends Obj = P>(param?: Obj): List<Para, I>
 }
 
 /** 分页查询类工厂方法
  * @param res 包含有getPageList方法的数据资源对象 或者指定查询请求方法
  * @param Info （可选）指定数据集合的实体类
  */
-export function pagesExtend<Para extends Obj = Obj, I = Obj>(res: Obj | Fn<Promise<any>>, Info?: Cls<I>) {
-  const _requestMethod = typeof res === 'function' ? res : res.getPageList.bind(res)
+export function pagesExtend<Para extends Obj = Obj, I = Obj>(
+  res: Obj | Fn<Promise<any>>,
+  Info?: Cls<I>
+) {
+  const _requestMethod =
+    typeof res === 'function' ? res : res.getPageList.bind(res)
   class _Pages extends List<Para, I> {
     get _ItemConstructor() {
       return Info
     }
     protected _requestMethod(param: Obj) {
-      const result = _interceptor && _interceptor(_requestMethod, param, typeof res !== 'function' ? <Resource>res : undefined)
-      return (result instanceof Promise) ? result : _requestMethod(param)
+      const result =
+        _interceptor &&
+        _interceptor(
+          _requestMethod,
+          param,
+          typeof res !== 'function' ? <Resource>res : undefined
+        )
+      return result instanceof Promise ? result : _requestMethod(param)
     }
   }
   return _Pages as unknown as Pages<Para, I>
