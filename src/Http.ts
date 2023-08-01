@@ -24,9 +24,7 @@ class Http {
 
     // config && this.setDefault(config)
     const { serverUrl = '', rootPath = '' } = this.options
-    this.basePath =
-      serverUrl +
-      (!path ? rootPath : path.startsWith('/') ? path : `${rootPath}/${path}`)
+    this.basePath = serverUrl + (!path ? rootPath : path.startsWith('/') ? path : `${rootPath}/${path}`)
   }
 
   protected setDefault(config: RequestConfig) {
@@ -84,29 +82,18 @@ class Http {
   }
 
   request<R = any>(path: string, config: RequestConfig = {}) {
-    const {
-      adapter,
-      defRequestConfig,
-      requestInterceptors,
-      transformResponse,
-    } = this.options
+    const { adapter, defRequestConfig, requestInterceptors, transformResponse } = this.options
     if (!adapter) {
       throw new Error('request对象暂未定义，请先初始化！')
     }
     // 全局配置-> 业务配置 -> 实例配置 -> 请求配置
-    const { backendLoad, silent, errMessageMode, ..._config } = merge(
-      {},
-      defRequestConfig,
-      this.requestConfig,
-      config
-    )
+    const { backendLoad, silent, errMessageMode, ..._config } = merge({}, defRequestConfig, this.requestConfig, config)
 
     const msgHandle = new MessageHandle({ backendLoad, silent, errMessageMode })
     this.setMessage = msgHandle.setMessage.bind(msgHandle)
     // 请求前的请求拦截操作
     const requestConfig = requestInterceptors?.(_config) || _config
-    const url =
-      this.basePath + (path && !path.startsWith('/') ? '/' : '') + path
+    const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path
 
     const request = adapter(url, requestConfig).then((response) => {
       msgHandle.setup()

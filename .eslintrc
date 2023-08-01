@@ -18,7 +18,9 @@
         "semi": false,
         "singleQuote": true,
         "quoteProps": "preserve",
-        "endOfLine": "auto"
+        "endOfLine": "auto",
+        "printWidth": 120,
+        "proseWrap": "preserve"
       },
       {
         "usePrettierrc": false,

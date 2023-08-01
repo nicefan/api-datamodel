@@ -3,6 +3,7 @@ import Resource from './Resource'
 import BaseInfo, { infoExtend } from './BaseInfo'
 import { pagesExtend } from './BaseList'
 import { getCipherInfo } from 'crypto'
+import { createCache, createCacheStore } from './dataCache'
 
 const res = Resource.create('user', {
   getList: 'get',
@@ -112,3 +113,11 @@ const pages2Res = res.createPagesInstance()
 function getPages(defParam: Obj) {
   return Info.createPages<QueryParam, Info>(defParam, res.getPageList)
 }
+
+export const useDeptCache = createCache({
+  request: (a: string) => Promise.resolve([{ id: 'string', name: 'string' }]),
+  keyField: 'deptId',
+  labelField: 'name',
+})
+const ab = useDeptCache('')
+ab.getResult()
