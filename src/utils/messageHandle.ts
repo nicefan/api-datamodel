@@ -6,7 +6,7 @@ interface HandleOptions {
   /** 静默请求，不显示loading及消息 */
   silent?: boolean
   /** 错误提示方式 */
-  errMessageMode?: ErrorMessageMode
+  messageMode?: ErrorMessageMode
 }
 export default class Handle {
   /** 手动设置消息数据 */
@@ -29,7 +29,7 @@ export default class Handle {
         ...errData,
         type: 'error',
         message: _message,
-        errMessageMode: this._options.errMessageMode,
+        messageMode: this._options.messageMode,
       }
     }
 
@@ -43,10 +43,8 @@ export default class Handle {
   }
 
   /** 替换消息，消息类型按请求状态，空字符串将取消显示后台消息 */
-  setMessage(msgData: MessageData | string): void {
-    if (!msgData) {
-      this._md = undefined
-    } else if (typeof msgData === 'string') {
+  setMessage(msgData: MessageData | string = ''): void {
+    if (typeof msgData === 'string') {
       this._md = { ...this._md, message: msgData }
     } else {
       this._md = { ...this._md, ...msgData }

@@ -7,10 +7,7 @@
  */
 
 export function buildAdapter<F extends Obj>(frame: F) {
-  function request(
-    url: string,
-    { params = {}, data = params, headers = {}, ...config }: RequestConfig
-  ) {
+  function request({ url, params = {}, data = params, headers = {}, ...config }: Required<RequestConfig>) {
     const { 'content-type': type, ..._header } = headers
     if (data.filePath && type === 'multipart/form-data') {
       return _upload(url, data, _header)
@@ -46,10 +43,7 @@ export function buildAdapter<F extends Obj>(frame: F) {
             } else {
               err = {
                 code,
-                message:
-                  typeof res.data === 'string'
-                    ? res.data
-                    : res.data.msg || res.data.message,
+                message: typeof res.data === 'string' ? res.data : res.data.msg || res.data.message,
               }
             }
             reject(err)
@@ -62,11 +56,7 @@ export function buildAdapter<F extends Obj>(frame: F) {
     })
   }
 
-  function _upload(
-    url: string,
-    { filePath, fileKey, ...formData }: Obj = {},
-    header: Obj
-  ) {
+  function _upload(url: string, { filePath, fileKey, ...formData }: Obj = {}, header: Obj) {
     return new Promise((resolve, reject) => {
       frame.uploadFile({
         url,

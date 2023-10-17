@@ -23,7 +23,7 @@ const banner = `/*!
 const tsPlugin = ts({
   lib: ['esnext', 'dom'],
   target: 'es2015',
-  declaration: true,
+  declaration: false,
   outDir: dir,
   declarationDir: declarationDir,
   // check: true,
@@ -52,12 +52,12 @@ const es = {
 }
 
 const types = {
-  input: [`${declarationDir}/index.d.ts`],
+  input: mainFile,
   output: {
     intro: global,
     format: 'es',
     dir: '.',
-    entryFileNames: dir + '/[name].ts',
+    entryFileNames: dir + '/[name].d.ts',
   },
   plugins: [dts()],
 }

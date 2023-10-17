@@ -33,7 +33,7 @@ export default (function () {
   }
 
   const complete = function (data?: any) {
-    if (data?.message) msgData = data
+    msgData = data || msgData
     pendNum--
     if (state === 'ready') {
       // 没有启动loading时也可以显示消息

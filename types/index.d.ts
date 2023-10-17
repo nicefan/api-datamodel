@@ -18,12 +18,12 @@ interface MessageData {
   message?: string
   /** 消息类型 */
   type?: 'success' | 'warning' | 'info' | 'error'
-  errMessageMode?: ErrorMessageMode
+  messageMode?: ErrorMessageMode
 }
 
 interface RequestConfig {
   /** 用于请求的服务器 URL */
-  // url?: string
+  url?: string
   /** 创建请求时使用的方法, 默认"GET" */
   method?: HttpMethod
   baseURL?: string
@@ -49,7 +49,7 @@ interface RequestConfig {
   /** 静默请求，不显示loading及消息 */
   silent?: boolean
   /** 错误提示方式 */
-  errMessageMode?: ErrorMessageMode
+  messageMode?: ErrorMessageMode
 }
 
 /** uni-app 上传文件的请求参数 */
