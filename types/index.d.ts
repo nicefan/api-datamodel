@@ -50,6 +50,8 @@ interface RequestConfig {
   silent?: boolean
   /** 错误提示方式 */
   messageMode?: ErrorMessageMode
+  /** 是否忽略后端返回数据拦截消息处理，responseType指定为非`json`时, 将自动忽略，直接返回`response`对象 */
+  IgnoreInterceptor?: boolean
 }
 
 /** uni-app 上传文件的请求参数 */

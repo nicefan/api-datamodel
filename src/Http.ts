@@ -87,7 +87,12 @@ class Http {
       throw new Error('request对象暂未定义，请先初始化！')
     }
     // 全局配置-> 业务配置 -> 实例配置 -> 请求配置
-    const { backendLoad, silent, messageMode, ..._config } = merge({}, defRequestConfig, this.requestConfig, config)
+    const { backendLoad, silent, messageMode, IgnoreInterceptor, ..._config } = merge(
+      {},
+      defRequestConfig,
+      this.requestConfig,
+      config
+    )
     const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path
 
     const msgHandle = new MessageHandle({ backendLoad, silent, messageMode })
@@ -99,7 +104,10 @@ class Http {
     const request = adapter(requestConfig).then((response) => {
       msgHandle.setup()
 
-      if (requestConfig.responseType === 'blob') {
+      if (
+        IgnoreInterceptor ||
+        (IgnoreInterceptor !== false && requestConfig.responseType && requestConfig.responseType !== 'json')
+      ) {
         return response
       }
       const data = response.data

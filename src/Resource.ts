@@ -31,7 +31,7 @@ class Resource extends Http {
       ...config,
     }).then(({ data, headers }) => {
       const str = headers?.['content-disposition'] || ''
-      const filename: string = str.match(/filename=(\S*?)(;|$)/)[1]
+      const filename: string = str.match(/filename=(\S*?)(;|$)/)?.[1]
       // uniRequest中data直接返回ObjectURL
       return {
         filename,
