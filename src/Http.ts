@@ -76,7 +76,7 @@ class Http {
   delete<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
     return this.request<T>(url, {
       ...config,
-      data,
+      params: data,
       method: 'DELETE',
     })
   }
