@@ -57,12 +57,9 @@ export default class Handle {
       msgData = { type: 'success', ...this._orginData, ...this._md }
     }
 
-    if (!this._options.backendLoad) {
-      taskStack.complete(msgData)
-    } else if (msgData) {
-      // 不进行loading加载的请求消息显示
-      taskStack.showMessage(msgData)
-    }
+    // 不进行loading加载的请求消息显示
+    taskStack.complete(msgData, this._options.backendLoad)
+
   }
 
   // 请求异常处理

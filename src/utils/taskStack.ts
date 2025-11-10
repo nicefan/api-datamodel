@@ -8,7 +8,8 @@ export default (function () {
   /** 显示loading计时器 */
   let showTimeout: NodeJS.Timeout
   let msgData: MessageData | undefined
-
+  /** 任务所有消息 */
+  let msgList: MessageData[] = []
   const LoadingServe = getLoadingServe
   /**
    * 开始一个请求加入列队
@@ -18,6 +19,7 @@ export default (function () {
     if (state === 'ready') {
       pendNum = 1
       state = 'pending'
+      msgList = []
       // 等待200毫秒进入加载状态， 如果在这之前执行close方法，将清除此计时器
       showTimeout = setTimeout(
         () => {
@@ -32,28 +34,40 @@ export default (function () {
     }
   }
 
-  const complete = function (data?: any) {
-    msgData = data || msgData
+  const complete = function (data?: any, backendLoad = false ) {
+    if (data)  {
+      msgData = data
+      msgList.push(data)
+      LoadingServe().message?.(data)
+    }
+    if (backendLoad) {
+      // 不进行loading加载的请求消息显示
+      if (state === 'ready') {
+        finish()
+      }
+      return
+    }
+
     pendNum--
     if (state === 'ready') {
       // 没有启动loading时也可以显示消息
-      showMessage()
+      finish()
     } else if (pendNum <= 0) {
       if (state === 'pending') {
         // 没有并发请求时立即取消loading
         clearTimeout(showTimeout)
-        showMessage()
+        finish()
       } else if (state === 'loading') {
         clearTimeout(timeout)
         timeout = setTimeout(() => {
-          showMessage()
+          finish()
         }, 100)
       }
     }
   }
   /** 加载完成显示的消息 */
-  const showMessage = function (data = msgData) {
-    LoadingServe().close(data)
+  const finish = () => {
+    LoadingServe().close(msgData, msgList)
     msgData = undefined
     state = 'ready'
     clearTimeout(showTimeout)
@@ -63,6 +77,6 @@ export default (function () {
   return {
     start,
     complete,
-    showMessage,
+    finish,
   }
 })()

@@ -22,7 +22,7 @@ const banner = `/*!
 
 const tsPlugin = ts({
   lib: ['esnext', 'dom'],
-  target: 'es2015',
+  target: 'es2022',
   declaration: false,
   outDir: dir,
   declarationDir: declarationDir,

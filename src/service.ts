@@ -19,8 +19,10 @@ export const defaultOptions: Partial<DefOptions> = {
 /** loading服务 */
 interface LoadingServe {
   show(): void
+  /** 显示消息 */
+  message?:(msg?: MessageData) => void
   /** 结束loading,并处理状态消息 */
-  close(data?: MessageData): void
+  close(data?: MessageData, msgList?: MessageData[]): void
 }
 let _loadingServe: LoadingServe
 /** loading服务配置 */
