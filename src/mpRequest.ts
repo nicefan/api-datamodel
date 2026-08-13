@@ -10,16 +10,16 @@ export function buildAdapter<F extends Obj>(frame: F) {
   function request({ url, params = {}, data = params, headers = {}, ...config }: Required<RequestConfig>) {
     const { 'content-type': type, ..._header } = headers
     if (data.filePath && type === 'multipart/form-data') {
-      return _upload(url, data, _header)
+      return _upload(url, data, _header, config.signal)
     }
     if (config.responseType === 'blob') {
-      return _download(url, headers)
+      return _download(url, headers, config.signal)
       // return fetch(new Request(baseURL + url, { headers }))
       // .then(response => response.blob())
     }
 
     return new Promise((resolve, reject) => {
-      frame.request({
+      const task = frame.request({
         url,
         data,
         header: headers,
@@ -53,12 +53,20 @@ export function buildAdapter<F extends Obj>(frame: F) {
           // console.log(`${baseURL + url}`, res)
         },
       })
+      config.signal?.addEventListener(
+        'abort',
+        () => {
+          task?.abort?.()
+          reject(config.signal?.reason)
+        },
+        { once: true }
+      )
     })
   }
 
-  function _upload(url: string, { filePath, fileKey, ...formData }: Obj = {}, header: Obj) {
+  function _upload(url: string, { filePath, fileKey, ...formData }: Obj = {}, header: Obj, signal?: AbortSignal) {
     return new Promise((resolve, reject) => {
-      frame.uploadFile({
+      const task = frame.uploadFile({
         url,
         filePath,
         name: fileKey,
@@ -66,7 +74,7 @@ export function buildAdapter<F extends Obj>(frame: F) {
         header,
         fail(err: any) {
           // console.log('uploadErr:' + url + err)
-          resolve(err)
+          reject(err)
         },
         success(res: any) {
           const { statusCode: code, data } = res
@@ -77,13 +85,21 @@ export function buildAdapter<F extends Obj>(frame: F) {
           }
         },
       })
+      signal?.addEventListener(
+        'abort',
+        () => {
+          task?.abort?.()
+          reject(signal.reason)
+        },
+        { once: true }
+      )
     })
   }
 
   /** 发起一个 HTTP GET 请求，返回文件的本地临时路径 */
-  function _download(url: string, header: Obj) {
+  function _download(url: string, header: Obj, signal?: AbortSignal) {
     return new Promise((resolve, reject) => {
-      frame.downloadFile({
+      const task = frame.downloadFile({
         url,
         header,
         success({ tempFilePath, statusCode: code, data }: any) {
@@ -95,9 +111,17 @@ export function buildAdapter<F extends Obj>(frame: F) {
         },
         fail(err: any) {
           // console.log('downLoadErr:' + url + err)
-          resolve(err)
+          reject(err)
         },
       })
+      signal?.addEventListener(
+        'abort',
+        () => {
+          task?.abort?.()
+          reject(signal.reason)
+        },
+        { once: true }
+      )
     })
   }
 

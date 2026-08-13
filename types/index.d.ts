@@ -10,7 +10,6 @@ type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
 type HttpResponseType = 'blob' | 'json' | 'text'
 
 type Obj<T = any> = Record<string, T>
-type Cls<T = any> = new (...args: any[]) => T
 type Fn<T = any> = (...args: any) => T
 type ErrorMessageMode = 'none' | 'message' | 'modal'
 interface MessageData {
@@ -41,6 +40,8 @@ interface RequestConfig {
   withCredentials?: boolean
   /** 服务器响应的数据类型，默认"json" */
   responseType?: HttpResponseType
+  /** 用于中止请求的标准信号 */
+  signal?: AbortSignal
   onUploadProgress?: (progressEvent: any) => void
   onDownloadProgress?: (progressEvent: any) => void
   // maxContentLength?: number;
@@ -61,17 +62,4 @@ interface UniFormData {
   /** 文件对应的参数名 */
   fileKey: string
   [key: string]: any
-}
-/** 分页接口数据类型 */
-interface PagesResult {
-  /** 当前页 */
-  current: number
-  /** 总页数 */
-  pageCount: number
-  /** 分页大小 */
-  pageSize: number
-  /** 总记录数 */
-  total: number
-  /** 数据记录 */
-  records: Obj[]
 }

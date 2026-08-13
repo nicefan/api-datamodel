@@ -1,18 +1,8 @@
 import Http from './Http'
-import { pagesExtend } from './BaseList'
-import { infoExtend } from './BaseInfo'
-class Resource extends Http {
-  /** 查询分页列表 */
-  // getPageList(param?: Obj) {
-  //   return super.post<PagesResult>('page', param)
-  // }
 
+class Resource extends Http {
   /** formData表单格式上传文件 */
-  upload(
-    apiName: string,
-    data: FormData | UniFormData,
-    config?: RequestConfig
-  ) {
+  upload(apiName: string, data: FormData | UniFormData, config?: RequestConfig) {
     return this.request(apiName, {
       headers: { 'content-type': 'multipart/form-data' },
       data,
@@ -30,39 +20,27 @@ class Resource extends Http {
       method: 'GET',
       ...config,
     }).then(({ data, headers }) => {
-      const str = headers?.['content-disposition'] || ''
-      const filename: string = str.match(/filename=(\S*?)(;|$)/)?.[1]
+      let disposition = headers?.['content-disposition'] || headers?.['Content-Disposition'] || ''
+      const pattern = /filename\*?=(?:UTF-8'')?(?:"([^"]+)"|([^;]+))/i
+      let match = disposition.match(pattern)
+      if (!match) {
+        try {
+          disposition = decodeURIComponent(disposition)
+          match = disposition.match(pattern)
+        } catch {}
+      }
+      let filename = (match?.[1] || match?.[2])?.trim()
+      if (filename) {
+        try {
+          filename = decodeURIComponent(filename)
+        } catch {}
+      }
       // uniRequest中data直接返回ObjectURL
       return {
         filename,
         data,
       }
     })
-  }
-
-  /** 创建一个数据实体类 */
-  // makeInfoClass<T, R extends Resource>(this:R, Def: Cls<T>) {
-  //   return infoExtend(Def, this)
-  // }
-
-  /** 创建一个分页列表类 */
-  makePagesClass<T, Qu extends Obj = Obj>(Info?: Cls<T>, methodName = 'page') {
-    const queryMethod = (param: Obj) =>
-      this.post(methodName, param) as Promise<PagesResult>
-    return pagesExtend<Qu, T>(queryMethod, Info)
-  }
-
-  /** 快速创建一个无类型分页数据列表实例 */
-  createPagesInstance<Param extends Obj = Obj, T = Obj>(
-    defParam?: Obj,
-    method?: Fn,
-    Item?: Cls<T>
-  ) {
-    const queryMethod =
-      method ||
-      this['getPageList'] ||
-      ((param: Obj) => this.post('page', param))
-    return new (pagesExtend(queryMethod.bind(this), Item))<Param>(defParam)
   }
 }
 

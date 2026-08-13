@@ -16,6 +16,8 @@ export default (function () {
    * @param {boolean} immed 不做延时，立即显示
    */
   const start = function (immed = false) {
+    // 新请求加入时取消上一批任务尚未执行的延迟关闭。
+    clearTimeout(timeout)
     if (state === 'ready') {
       pendNum = 1
       state = 'pending'
@@ -34,8 +36,8 @@ export default (function () {
     }
   }
 
-  const complete = function (data?: any, backendLoad = false ) {
-    if (data)  {
+  const complete = function (data?: any, backendLoad = false) {
+    if (data) {
       msgData = data
       msgList.push(data)
       LoadingServe().message?.(data)

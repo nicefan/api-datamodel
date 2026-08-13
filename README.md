@@ -28,10 +28,10 @@ setLoadingServe({
     showMessage.loading({ content: '请求中...', duration: 0, key });
   },
   close(data) {
-    const { message, type, code, errMessageMode } = data;
+    const { message, type, code, messageMode } = data;
     // 全部请求结束后关闭loading及显示消息的操作
     // 可以通过code判断进行友好提示
-    if (type === 'error' && errMessageMode === 'modal') {
+    if (type === 'error' && messageMode === 'modal') {
       Modal.error({
         title: '错误提示',
         content: message,
@@ -97,18 +97,33 @@ const userApi = createApi('/user', {
           /** 后台加载，不显示loading框 */
           backendLoad?: boolean
           /** 错误提示方式 */
-          errMessageMode?: 'modal' | 'message'
+          messageMode?: 'modal' | 'message'
           // ...其它请求参数
         }) 
     },
     getInfo(param?: Obj) {
         return this.get('getInfo', param) // 实际请求地址为"/api/user/getInfo"
     }
-    // 上面方法使用快捷语法糖实现
-    getInfo: 'get', 
 })
 
 export { userApi }
+```
+
+底层请求方法也可通过只读的 `$http` 访问。当业务方法与 `get`、`post`、`delete`、`request` 等基础方法重名时，应使用 `$http` 避免命名冲突：
+
+```ts
+const userApi = createApi('/user', {
+    delete(id: string, config?: RequestConfig) {
+        return this.$http.delete<boolean>(`/delete/${id}`, undefined, config)
+    },
+    request(id: string) {
+        return this.$http.get<User>(`/${id}`)
+    },
+})
+
+userApi.post('/save', data)       // 原有顶层请求方法仍可使用
+userApi.$http.post('/save', data) // 显式调用底层请求方法
+userApi.$http.abort()             // 中止该资源所有进行中的请求
 ```
 
 应用：
@@ -129,8 +144,8 @@ import { createCache } from 'api-datamodel'
   export const getDeptCache = createCache({
     request: deptApi.list, // 指定请求方法,应该是一个静态方法，如果绑定()=>xxx()的动态方法，需加上name属性。
     // name: 'deptApi', // 可忽略，用于缓存唯一签名。
-    keyField: 'deptId', // 可忽略； 指定key字段，用于map对象生成，默认为'id'，
-    valueField: ''， // 可忽略； 指定value字段，此字段指定后，将自动将keyField字段定义为label，返回结果格试化为{id, value, label} 的字典类型。
+    keyField: 'deptId', // 普通记录生成map时必须明确指定key字段。
+    labelField: 'name', // 与keyField同时指定时，将结果转换为字典项。
   });
 
   // 只需要简单缓存
@@ -208,129 +223,10 @@ userApi
 export const userApi = createApi('/user', {
     /** 获取用户消息，防止出现加载提示 */
     getNotice(id: string) {
-        return this.get('notice', { id }, { slient: true })
+        return this.get('notice', { id }, { silent: true })
     },
 })
 ```
-
-
-## 分页数据模型
-
-使用分页数据模型在业务中进行快捷的请求查询、分页控制等操作。
-
-**创建分页数据实例：**
-
-使用api实例的 `createPagesInstance` 方法创建
-
-```ts
-
-// 通过api实例快捷创建分页实例, 默认调用api实例的getPageList方法用于分页数据请求
-function createUserPage(param?: Obj) {
-    return userApi.createPagesInstance(param)
-}
-
-```
-
-​	一个api实例中有多个分页数据时， 在api实例中扩展
-
-```ts
-import { createApi } from 'api-datamodel'
-const userApi = createApi('/user', {
-    getPageList(param) {
-        return this.get('page', param)
-    },
-    // 添加一个`/user/otherList`接口的请求方法
-    getOtherPage(param?: Obj) {
-        return this.get('otherList', param)
-    },
-    // 指定getOtherPage作为分页请求方法
-    createOtherPage(param?: Obj) {
-    	return this.createPagesInstance(param, this.getOtherPage)
-	}
-})
-export { userApi }
-```
-
-
-
-
-**自定义数据结构处理**
-
-当现有业务接口不符合此约定时，可配置拦截勾子进行转换处理。
-
-[参考setInterceptor](#setInterceptor)
-
-## 实体类数据模型
-
-实体类数据通过描述一个模块的主体数据的基本属性作为核心生成对应实例进行操作。
-
-实体类中包括有该实体的字段属性类型，针对实例的操作方法（增、删、改等），以及需要计算或转换的只读属性。
-
-**创建实体类**
-
-```ts
-import { createApi, infoExtend } from 'api-datamodel'
-
-const userApi = createApi('/user', {
-    setStatus(id:string, status:string) {
-        return this.put(id, {status})
-    }
-})
-
-// 定义用户字段属性类及默认值
-class UserInfo {
-  id = ''
-  /** 姓名 */
-  name = ''
-  /** 性别 */
-  sex = '2'
-  /** 手机号码 */
-  mobile = ''
-  /** 状态 */
-  status = '0'
-}
-
-// 将UserInfo包装成一个User实体类
-export class User extends infoExtend(UserInfo, userApi) {
-    // 只读属性
-    get sexName() {
-        return ['先生', '女士'][this.sex-1]
-    }
-    
-    /** 设为在职 */
-  	setOnline() {
-    	const status = '1'
-    	return this.api.setStatus(this.id, status).then(() => {
-      		this.status = status
-      	})
-  	}
-}
-```
-
-业务中使用：
-
-``` vue
-<template>
-	<div>
-        hello, {{ user.name }} {{user.sexName}}
-    </div>
-</template>
-<script>
-	import { User } from '@/api'
-    export default {
-        data() {
-            return {
-                user: new User() // 构造一个用户实例
-            }
-        },
-        mounted() {
-            // 通过用户id加载数据
-            this.user.load(this.$route.params.id)
-        }
-    }
-</script>
-```
-
 
 
 # 高级
@@ -442,238 +338,3 @@ protected interceptorResolve(response) {
 
   通过指定请求参数`responseType: 'blob'` 实现二进制流文件下载
 
-+ makeInfoClass
-
-  生成一个绑定当前请求资源实例的数据实体类
-
-+ makePagesClass
-
-  生成一个绑定有当前请求资源实例的分页列表类
-
-+ createPagesInstance(*defParam*?: Obj, *method* = this.getPageList)
-
-  指定默认的查询条件与查询方法生成一个分页列表实例
-
-## 业务实体类：BaseInfo (抽象类)
-
-BaseInfo类是实体构造类的基类，必须通过 `extend` 静态方法补充实体字段属性和请求资源实例后返回一个具体类，再进行继承使用。
-
-可以通过继承该类，添加通用方法，如保存、删除等。
-
-### 静态方法
-
-+ extend( *Info*: Cls, *res*?: R | string)
-
-  基类扩展方法，将参数Info字段属性混入，同时绑定api属性为第二个参数指定的请求资源实例；
-
-  第二个参数为string类型时，自动创建一个以参数值为前缀的请求资源实例；
-
-  第二个参数忽略时，无法调用默认load方法，需自行在子类中覆盖实现。
-
-+ createFactory()
-
-  生成一个绑定当前构造器的扩展方法，方便独立引入使用
-
-  ```ts
-  const infoExtend = BaseInfo.createFactory()
-  // infoExtend(...) 等同于 BaseInfo.extend(...)
-  ```
-
-+ makePagesClass(*method*?: Fn<Promise<PagesResult>>)
-
-  生成一个绑定当前实例的分页类，等同于`pagesExtend` 方法
-
-+ createPages(*defParam*?: Obj, *method*?: Fn<Promise<PagesResult>>)
-
-  创建一个records记录为当前实体类型的分页实例， 等同于`createOagesInstance` 方法
-
-+ api 
-
-  扩展方法中传递的请求资源实例
-
-### 实例方法
-
-+ reset(data?: any)
-
-  数据重置更新。
-
-+ load(id: string)
-
-  通过调用api资源实例的`get`方法，请求成功后调用`reset`方法更新。
-
-  确保接口模块中提供此接口，如“/user/{id}”，如不一致时，需在子类中覆盖重写此方法。
-
-+ clone()
-
-  克隆一个副本；
-
-+ assign(data: any)
-
-  将新的数据与现有数据整合；
-
-+ getOriginal()
-
-  获取接口返回的原始数据；
-
-+ getObject()
-
-  获取基础属性的标准对象；
-
-+ *protected* init(data?: any)
-
-  内部勾子方法，在构造实例时调用。
-
-+ *protected* onLoadAfter(data: any)
-
-  内部勾子方法，在请求到数据，更新实例前调用。
-
-+ *protected* onUpdateBefore(data: any)
-
-  内部勾子方法，更新实例数据前调用。
-
-## 分页列表类：BaseList (抽象类)
-
-将分页列表请求的查询、分页控制等操作进行封装处理。
-
-### 静态方法 <a name="setInterceptor" />
-
-+  setInterceptor( callback() => Promise )
-
-  配置一个请求拦截器，发起请求前先调用callback ，并将请求方法及请求参数做为callback的执行参数，并要求返回一个符合[请求数据结构约定](#请求数据结构约定)的Promise对象。 在callback方法中可将参数及返回结果数据结构进行处理。
-  
-  ```ts 
-  import { BaseList } from 'api-datamodel'
-  BaseList.setInterceptor((fn, param) =>
-    fn(param).then(({ current, pages: pageCount, size: pageSize, total, records }) => {
-      return { current, pageCount, pageSize, total, records }
-    })
-  )
-  ```
-
-### 实例属性
-
-| 属性名      | 类型                                   | 说明               |
-| ----------- | -------------------------------------- | ------------------ |
-| records     | array                                  | 当前数据记录数组   |
-| current     | number                                 | 当前页             |
-| pageCount   | number                                 | 总页数             |
-| pageSize    | number                                 | 每页大小           |
-| total       | number                                 | 总记录数           |
-| status      | "loading"\|"more"\|"noMore"\|undefined | 加载中/更多/最末页 |
-| hasNextPage | boolean                                | 是否还有下一页     |
-
-### 实例方法
-
-+ setDefaultParam({ size, ...param}) : void
-
-  指定默认的查询条件参数及分页大小
-
-+ query(param: Obj) : Promise<PagesResult>
-
-  执行查询请求，查询条件将与默认条件合并，并清除当前页码
-
-+ update(data: PagesResult) : data
-
-  在请求成功后将调用此方法对实例属性进行更新，当扩展一些固定的查询条件作为方法时可手动调用些方法更新
-
-+ setSize(size: number) : Promise<PagesResult>
-
-  动态变更每页记录数，将根据总页数重新计算当前页并执行查询
-
-+ reload() : Promise<PagesResult>
-
-  使用当前查询条件，重新执行查询，刷新当前数据
-
-+ goPage(page: number) : Promise<PagesResult>
-
-  跳转到指定页
-
-+ loadMore() : Promise<PagesResult>
-
-  移动端加载更新，通过判断是否还有下一页，执行下一页查询，并将records数组进行拼接。
-
-### 请求数据结构约定
-
-默认后端接口返回的 `data` 数据对象结构定义为 `PagesResult` 类型：
-
-| 属性      | 说明         |
-| --------- | ------------ |
-| records   | 查询结果数据 |
-| current   | 当前页码     |
-| total     | 总记录条数   |
-| pageCount | 总页数       |
-| pageSize  | 每页记录条数 |
-
-**分页查询参数**
-
-​		请求参数中的分页参数使用 `page` 对象传递：
-
-```ts 
-page: { current?: number; size?: number } = {}
-```
-
-### 生成具体类： pagesExtend
-
-BaseList类需要通过 `pagesExtend` 方法指定一个请求方法才能具体化。
-
-**语法：**
-
-`pagesExtend(res: Obj | Fn<Promise<any>>, Info?: Cls<I>)`
-
-**参数：**
-
-res: 指定数据请求方法或指定一个api实例对象，默认调用api实例中的 `getPageList` 方法做为请求方法；
-
-Info: 指定数据实体类， 将records中的每条数据都转换成一个实体对象。
-
- ```ts
- import { pagesExtend } from 'api-datamodel'
- const userApi = createApi('/user', {
-     getPageList(param) {
-         return this.get('page', param)
-     },
- })
- class UserPages extends pagesExtend(userApi) {
-      /** 导出当前查询记录 */
-   	export() {
-     	return userApi.downloadFile('export', { data: { ...this._defaultParam, ...this._param } })
-   	}
- }
- export { UserPages }
- // 使用new创建实例
- const userPages = new UserPages()
- ```
-
-### 快捷实现
-
-通常业务中可以通过请求实例，或实体类快捷创建分页列表实例。
-
-+ 使用请求实例创建
-
-  ```ts
-  import { createApi } from 'api-datamodel'
-  const userApi = createApi('/user', {
-      getPageList(param) {
-          return this.get('page', param)
-      },
-  })
-  export { userApi }
-  // 直接使用请求实例创建分页实例
-  const userPages = userApi.createPagesInstance()
-  // userPages.query()
-  ```
-
-+ 使用实体类创建
-
-  ```ts
-  class UserInfo {
-      // user属性
-  }
-  export class User extends infoExtend(UserInfo, userApi) {
-      
-  }
-  // 创建一个以User实例的分页列表
-  const userPages = User.createPages()
-  ```
-
-  

@@ -14,6 +14,7 @@ class Http {
   setMessage!: MessageHandle['setMessage']
 
   protected requestConfig: RequestConfig = {}
+  private abortControllers = new Set<AbortController>()
 
   private basePath = ''
   private options
@@ -81,6 +82,12 @@ class Http {
     })
   }
 
+  /** 中止当前资源所有进行中的请求 */
+  abort(reason?: any) {
+    this.abortControllers.forEach((controller) => controller.abort(reason))
+    this.abortControllers.clear()
+  }
+
   request<R = any>(path: string, config: RequestConfig = {}) {
     const { adapter, defRequestConfig, requestInterceptors, transformResponse } = this.options
     if (!adapter) {
@@ -93,6 +100,16 @@ class Http {
       this.requestConfig,
       config
     )
+    const controller = new AbortController()
+    const signal = _config.signal
+    const abort = () => controller.abort(signal?.reason)
+    if (signal?.aborted) {
+      abort()
+    } else {
+      signal?.addEventListener('abort', abort, { once: true })
+    }
+    _config.signal = controller.signal
+    this.abortControllers.add(controller)
     const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path
 
     const msgHandle = new MessageHandle({ backendLoad, silent, messageMode })
@@ -101,22 +118,27 @@ class Http {
     let requestConfig = { url, ..._config }
     requestConfig = requestInterceptors?.(requestConfig) || requestConfig
 
-    const request = adapter(requestConfig).then((response) => {
-      msgHandle.setup()
+    const request = adapter(requestConfig)
+      .then((response) => {
+        msgHandle.setup()
 
-      if (
-        IgnoreInterceptor ||
-        (IgnoreInterceptor !== false && requestConfig.responseType && requestConfig.responseType !== 'json')
-      ) {
-        return response
-      }
-      const data = response.data
-      // 返回数据格式化处理
-      if (transformResponse) {
-        response.data = transformResponse(data)
-      }
-      return this.interceptorResolve(response)
-    })
+        if (
+          IgnoreInterceptor ||
+          (IgnoreInterceptor !== false && requestConfig.responseType && requestConfig.responseType !== 'json')
+        ) {
+          return response
+        }
+        const data = response.data
+        // 返回数据格式化处理
+        if (transformResponse) {
+          response.data = transformResponse(data)
+        }
+        return this.interceptorResolve(response)
+      })
+      .finally(() => {
+        signal?.removeEventListener('abort', abort)
+        this.abortControllers.delete(controller)
+      })
 
     Promise.resolve(request)
       .catch((err) => {
