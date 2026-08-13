@@ -1,0 +1,58 @@
+<%
+const { utils, route, config, modelTypes } = it;
+const { _, pascalCase, require } = utils;
+const apiClassName = pascalCase(route.moduleName);
+const routes = route.routes;
+
+const dataContracts = _.map(modelTypes, "name");
+%>
+
+<% if (dataContracts.length) { %>
+import type { <%~ dataContracts.join(", ") %> } from "./<%~ config.fileNames.dataContracts %>"
+<% } %>
+
+<%
+const { httpModule, httpPath, prePath } = config.fileNames
+const pathArr = _.split(routes[0].request.path, '/')
+const fristName = pathArr[1]
+let moduleName = fristName
+if (fristName === 'lc') {
+  const resourceName = pathArr[2] || route.moduleName
+  const resourcePrefix = `/${fristName}/${resourceName}`
+  moduleName += pascalCase(resourceName)
+  const peerExists = it.routes.combined.some(item => {
+    const peerPath = item.routes[0].request.path
+    return item.moduleName !== route.moduleName && (peerPath === resourcePrefix || peerPath.startsWith(`${resourcePrefix}/`))
+  })
+  if (peerExists) {
+    const pathParamNames = _.map(routes[0].request.parameters || [], 'name')
+    const routeSegment = _.find(
+      pathArr.slice(3),
+      item => item && !_.includes(pathParamNames, _.trim(item, '{}:'))
+    )
+    if (routeSegment) moduleName += pascalCase(routeSegment)
+  }
+} else if (it.routes.combined.find(item => item.moduleName !== route.moduleName && item.routes[0].request.path.startsWith(`/${fristName}/`))) {
+  // 同一路径前缀可能由多个 Controller 提供（如 /pages 与 /pages/{pageId}/draft）。
+  // 忽略路径参数，使用首个静态子路径保证生成的客户端变量名唯一且可读。
+  // 第 1 段为业务前缀（如 lc），第 2 段为资源名（如 pages）；
+  // 从其后的静态段取名，避免 /lc/pages 与 /lc/pages/{pageId}/draft 都叫 lcPagesApi。
+  const routeSegment = _.find(
+    pathArr.slice(3),
+    item => item && !item.startsWith('{') && !item.startsWith(':')
+  ) || pathArr[2] || route.moduleName
+  moduleName += pascalCase(routeSegment)
+}
+%>
+
+import { <%~ httpModule %> } from "<%~ httpPath %>";
+/**
+* <%~ routes[0].raw.tags.join(", ") %>
+
+**/
+export const <%= moduleName %>Api = <%= httpModule %>('<%= prePath + fristName %>', {
+    <% routes.forEach((route) => { %>
+        <% route.request.shortPath = _.replace(route.request.path, `/${fristName}`, '') %>
+        <%~ includeFile('./procedure-call.ejs', { ...it, route }) %>
+    <% }) %>
+})
