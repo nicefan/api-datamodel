@@ -4,7 +4,7 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'api-datamodel',
   description: '轻量级 TypeScript API 分层管理库',
-  base: '/api-datamodel/',
+  base: process.env.DOCS_BASE || '/api-datamodel/',
   cleanUrls: true,
   lastUpdated: true,
   themeConfig: {
