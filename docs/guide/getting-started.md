@@ -6,7 +6,7 @@
 pnpm add api-datamodel
 ```
 
-使用 Axios 时同时安装：
+如果需要使用 Axios：
 
 ```bash
 pnpm add axios
@@ -15,8 +15,12 @@ pnpm add axios
 ## 创建 Resource
 
 ```ts
-import axios from 'axios'
-import { defineConfig, serviceInit, setLoadingServe } from 'api-datamodel'
+import {
+  fetchAdapter,
+  defineConfig,
+  serviceInit,
+  setLoadingServe,
+} from 'api-datamodel'
 
 setLoadingServe({
   show() {},
@@ -24,21 +28,20 @@ setLoadingServe({
 })
 
 const config = defineConfig({
-  adapter: axios,
+  adapter: fetchAdapter,
   serverUrl: '/api',
   defRequestConfig: {
-    timeout: 30_000,
+    timeout: 30000,
   },
   requestInterceptors(config) {
     return config
   },
   transformResponse(result) {
-    const { code, msg, data } = result
     return {
-      code,
-      message: msg,
-      data,
-      success: code === 0 || code === 200,
+      code: result.code,
+      message: result.msg,
+      data: result.data,
+      success: result.code === 0,
     }
   },
 })
@@ -46,38 +49,53 @@ const config = defineConfig({
 export const createApi = serviceInit(config)
 ```
 
+Resource 负责后台服务配置，Api 负责业务模块描述。
+
 ## 定义业务 Api
 
 ```ts
-import { createApi } from './dataModel'
-
-interface User {
-  id: number
-  name: string
-}
-
 export const userApi = createApi('user', {
-  list(query: { page: number }) {
-    return this.get<User[]>('list', query)
+  list(query) {
+    return this.$http.get('list', query)
   },
-  getInfo(id: number) {
-    return this.get<User>(`${id}`)
+
+  getInfo(id) {
+    return this.$http.get(`${id}`)
   },
-  save(data: Partial<User>) {
-    return this.post<number>('save', data)
-  },
-  delete(id: number) {
-    return this.$http.delete<boolean>(`${id}`)
+
+  save(data) {
+    return this.$http.post('save', data)
   },
 })
 ```
 
-## 调用
+业务代码：
 
 ```ts
 const users = await userApi.list({ page: 1 })
 const user = await userApi.getInfo(1001)
-await userApi.save({ name: 'Tom' })
 ```
 
-当 `serverUrl` 为 `/api`、Api 模块为 `user`、方法请求 `list` 时，最终请求地址为 `/api/user/list`。
+## 请求路径
+
+当：
+
+```text
+serverUrl  /api
+Api        user
+method     list
+```
+
+最终请求：
+
+```text
+/api/user/list
+```
+
+业务层只关注：
+
+```ts
+userApi.list()
+```
+
+无需维护完整请求地址。
