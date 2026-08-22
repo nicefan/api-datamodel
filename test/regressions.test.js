@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
-import { ApiResource, CacheResult, Http, buildAdapter, setLoadingServe } from '../dist/index.js'
+import { ApiResource, CacheResult, Http, buildAdapter, fetchAdapter, setLoadingServe } from '../dist/index.js'
 
 test('API Codegen defineConfig module has a default export and configuration types', async () => {
   const { default: defineConfig } = await import('../codegen/defineConfig.js')
@@ -17,6 +17,93 @@ test('API Codegen defineConfig module has a default export and configuration typ
 })
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+test('fetch adapter maps query parameters and normalizes a JSON response', async () => {
+  const originalFetch = globalThis.fetch
+  let request
+  globalThis.fetch = async (url, init) => {
+    request = { url, init }
+    return new Response(JSON.stringify({ value: 1 }), {
+      status: 200,
+      headers: { 'x-request-id': 'request-1' },
+    })
+  }
+
+  try {
+    const response = await fetchAdapter({
+      url: '/users?active=true#list',
+      method: 'GET',
+      params: { role: ['admin', 'owner'], empty: null },
+      withCredentials: true,
+    })
+
+    assert.equal(request.url, '/users?active=true&role=admin&role=owner#list')
+    assert.equal(request.init.credentials, 'include')
+    assert.deepEqual(response.data, { value: 1 })
+    assert.equal(response.headers['x-request-id'], 'request-1')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('fetch adapter serializes JSON and leaves FormData content type to Fetch', async () => {
+  const originalFetch = globalThis.fetch
+  const requests = []
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url, init })
+    return new Response('{}', { status: 200 })
+  }
+
+  try {
+    await fetchAdapter({ url: '/json', method: 'POST', data: { name: 'Joe' } })
+    const formData = new FormData()
+    formData.append('name', 'Joe')
+    await fetchAdapter({
+      url: '/form',
+      method: 'POST',
+      data: formData,
+      headers: { 'content-type': 'multipart/form-data' },
+    })
+
+    assert.equal(requests[0].init.body, JSON.stringify({ name: 'Joe' }))
+    assert.equal(requests[0].init.headers.get('content-type'), 'application/json')
+    assert.equal(requests[1].init.body, formData)
+    assert.equal(requests[1].init.headers.has('content-type'), false)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('fetch adapter rejects HTTP errors with normalized response data', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ message: 'invalid' }), { status: 400, statusText: 'Bad Request' })
+
+  try {
+    await assert.rejects(fetchAdapter({ url: '/invalid' }), (error) => {
+      assert.equal(error.code, 400)
+      assert.equal(error.status, 400)
+      assert.deepEqual(error.response.data, { message: 'invalid' })
+      return true
+    })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('fetch adapter applies request timeout through AbortSignal', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (url, init) =>
+    new Promise((resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
+    })
+
+  try {
+    await assert.rejects(fetchAdapter({ url: '/slow', timeout: 5 }), /Request timeout after 5ms/)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
 
 test('public entry no longer exports BaseInfo or BaseList APIs', async () => {
   const api = await import('../dist/index.js')

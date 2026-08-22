@@ -92,8 +92,7 @@ yarn add api-datamodel
 创建 `src/api/dataModel.ts`：
 
 ```ts
-import axios from 'axios'
-import { defineConfig, serviceInit, setLoadingServe } from 'api-datamodel'
+import { defineConfig, fetchAdapter, serviceInit, setLoadingServe } from 'api-datamodel'
 
 // 非 silent 请求需要初始化 Loading 服务。
 // 可接入任意 UI 框架；暂不需要界面反馈时可使用空实现。
@@ -104,7 +103,7 @@ setLoadingServe({
 
 export const defaultResourceConfig = defineConfig({
   // 任何接收 RequestConfig 并返回 Promise 的函数都可作为适配器。
-  adapter: axios,
+  adapter: fetchAdapter,
   serverUrl: '/api',
   rootPath: '',
   defRequestConfig: {
@@ -823,6 +822,7 @@ await userApi.$http.upload('avatar', {
 | `createCacheStore` | 创建共享缓存空间和批量缓存工厂 |
 | `registBatch` | 一次注册多个缓存方法 |
 | `buildAdapter` | 适配 UniApp/Taro 类跨平台请求 API |
+| `fetchAdapter` | 将浏览器或 Node.js 18+ 的标准 Fetch API 包装为请求适配器 |
 
 ## 使用约束
 

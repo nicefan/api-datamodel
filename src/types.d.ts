@@ -1,7 +1,7 @@
 /// <reference types="../types" />
 
 interface Adapter {
-  (url: string, config: RequestConfig): Promise<any>
+  (config: RequestConfig): Promise<any>
   [key: string]: any
 }
 type DefaultRequestConfig = Partial<

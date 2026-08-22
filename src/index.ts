@@ -15,3 +15,5 @@ export { default as Http } from './Http'
 export { default as ApiResource } from './Resource'
 
 export { buildAdapter } from './mpRequest'
+/** 标准 Fetch API 请求适配器 */
+export { fetchAdapter } from './fetchAdapter'
