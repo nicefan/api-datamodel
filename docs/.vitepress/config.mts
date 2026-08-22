@@ -11,7 +11,7 @@ export default defineConfig({
     nav: [
       { text: '指南', link: '/guide/getting-started' },
       { text: 'CacheResult', link: '/cache/' },
-      { text: 'SwaggerGen', link: '/swagger/' },
+      { text: 'API Codegen', link: '/swagger/' },
       { text: 'GitHub', link: 'https://github.com/nicefan/api-datamodel' }
     ],
     sidebar: [
@@ -27,7 +27,7 @@ export default defineConfig({
         text: '工具',
         items: [
           { text: 'CacheResult', link: '/cache/' },
-          { text: 'SwaggerGen', link: '/swagger/' }
+          { text: 'API Codegen', link: '/swagger/' }
         ]
       }
     ],
