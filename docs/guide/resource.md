@@ -2,9 +2,17 @@
 
 Resource 是后台服务资源层，建立在 `Http` 之上。
 
-## 默认能力
+它负责描述一个服务的公共规则：
 
-`ApiResource` 默认扩展了两个常用方法：
+- `serverUrl` / `rootPath`
+- 默认请求配置
+- 鉴权与请求拦截
+- 返回数据转换
+- 服务级公共请求能力
+
+## 默认扩展能力
+
+`ApiResource` 在 Http 基础上提供：
 
 ```ts
 upload()
@@ -21,7 +29,7 @@ const { filename, data } = await userApi.downloadFile('export')
 
 ## 自定义 Resource
 
-如果某个后台服务存在自己的公共请求能力，可以继承 `ApiResource` 扩展：
+如果某个后台服务需要额外公共能力，可以继承 `ApiResource`：
 
 ```ts
 import { ApiResource } from 'api-datamodel'
@@ -35,44 +43,45 @@ class CustomResource extends ApiResource {
 }
 ```
 
-也可以直接使用 `new ApiResource()` 创建独立实例。
+也可以直接创建独立实例：
+
+```ts
+new ApiResource()
+```
 
 ## 多服务域
 
-不同后台服务可以分别创建 Resource：
+多个后台服务可以分别创建 Resource：
 
 ```ts
-import axios from 'axios'
-import { ApiResource } from 'api-datamodel'
+export const createSystemApi =
+  ApiResource.factory({
+    serverUrl: '/system-api',
+  })
 
-export const createSystemApi = ApiResource.factory({
-  adapter: axios,
-  serverUrl: '/system-api',
-})
-
-export const createWorkflowApi = ApiResource.factory({
-  adapter: axios,
-  serverUrl: '/workflow-api',
-})
+export const createWorkflowApi =
+  ApiResource.factory({
+    serverUrl: '/workflow-api',
+  })
 ```
 
-再创建对应业务 Api：
+然后创建业务 Api：
 
 ```ts
-export const userApi = createSystemApi('user', {
+const userApi = createSystemApi('user', {
   list() {
     return this.get('list')
   },
 })
 
-export const taskApi = createWorkflowApi('task', {
+const taskApi = createWorkflowApi('task', {
   pending() {
     return this.get('pending')
   },
 })
 ```
 
-对应请求路径：
+对应：
 
 ```text
 /system-api/user/list
