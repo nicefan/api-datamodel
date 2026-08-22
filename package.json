@@ -13,10 +13,10 @@
   "files": [
     "dist",
     "types",
-    "swagger"
+    "codegen"
   ],
   "bin": {
-    "api-datamodel-swagger": "./swagger/main.js"
+    "api-datamodel-codegen": "./codegen/main.js"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -25,11 +25,12 @@
   "scripts": {
     "build": "rollup -c",
     "lint": "eslint . --fix --ignore-path .gitignore",
-    "swagger": "node ./swagger/main.js",
+    "codegen": "node ./codegen/main.js",
     "test": "pnpm run build && node --test test/regressions.test.js test/swagger-config.test.js"
   },
   "dependencies": {
     "inquirer": "^9.1.3",
+    "jiti": "^2.7.0",
     "swagger-typescript-api": "^12.0.4"
   },
   "devDependencies": {

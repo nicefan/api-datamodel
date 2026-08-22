@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
 
 import { ApiResource, CacheResult, Http, buildAdapter, setLoadingServe } from '../dist/index.js'
+
+test('API Codegen defineConfig module has a default export and configuration types', async () => {
+  const { default: defineConfig } = await import('../codegen/defineConfig.js')
+  const declarations = await readFile(new URL('../codegen/defineConfig.d.ts', import.meta.url), 'utf8')
+  const configDeclarations = await readFile(new URL('../codegen/config.d.ts', import.meta.url), 'utf8')
+
+  assert.equal(typeof defineConfig, 'function')
+  assert.deepEqual(defineConfig({ apis: {} }), { apis: {} })
+  assert.match(declarations, /export type \{ CodegenApiConfig, CodegenConfig \}/)
+  assert.match(configDeclarations, /interface CodegenApiConfig/)
+  assert.match(configDeclarations, /interface CodegenConfig/)
+})
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
@@ -64,20 +77,23 @@ test('$http remains isolated when business methods override request methods', as
   )
 })
 
-test('$http requests expose setMessage on the external resource instance', async () => {
+test('$http requests expose setMessage on the request instance', async () => {
   const userApi = ApiResource.create(
     'user',
     {
       save() {
-        return this.$http.post('/save', {}, { silent: true })
+        return this.$http.post('/save', {}, { silent: true }).then((result) => {
+          this.$http.setMessage('保存成功')
+          return result
+        })
       },
     },
     { adapter: async () => ({ data: true }) }
   )
 
   await userApi.save()
-  assert.equal(typeof userApi.setMessage, 'function')
-  assert.doesNotThrow(() => userApi.setMessage('保存成功'))
+  assert.equal(typeof userApi.$http.setMessage, 'function')
+  assert.doesNotThrow(() => userApi.$http.setMessage('保存成功'))
 })
 
 test('$http.abort stops all pending requests for the resource', async () => {
@@ -121,11 +137,11 @@ test('an external signal can abort a request managed by $http', async () => {
   assert.equal(adapterSignal.aborted, true)
 })
 
-test('string resource method shortcuts are rejected', () => {
-  assert.throws(
-    () => ApiResource.create('user', { list: 'get' }, { adapter: async () => ({ data: [] }) }),
-    /资源方法 list 必须是函数/
-  )
+test('non-function resource extensions are preserved', () => {
+  const userApi = ApiResource.create('user', { list: 'get' }, { adapter: async () => ({ data: [] }) })
+
+  assert.equal(userApi.list, 'get')
+  assert.equal(typeof userApi.$http.get, 'function')
 })
 
 test('cache map uses the explicitly configured record key field', async () => {
@@ -178,7 +194,7 @@ test('cross-platform upload and download failures reject', async () => {
   await assert.rejects(adapter({ url: '/download', responseType: 'blob', headers: {} }), downloadError)
 })
 
-test('download filename parsing supports plain, RFC 5987 and fully encoded headers', async () => {
+test('download filename parsing supports plain and RFC 5987 headers', async () => {
   const headers = []
   const resource = new ApiResource('/files', {
     adapter: async () => ({
@@ -196,8 +212,6 @@ test('download filename parsing supports plain, RFC 5987 and fully encoded heade
   headers.push("attachment; filename*=UTF-8''report%3Bfinal.csv")
   assert.equal((await resource.downloadFile('report', { silent: true })).filename, 'report;final.csv')
 
-  headers.push(encodeURIComponent('attachment; filename=中文.png'))
-  assert.equal((await resource.downloadFile('report', { silent: true })).filename, '中文.png')
 })
 
 test('cross-platform adapter aborts its request task when signaled', async () => {

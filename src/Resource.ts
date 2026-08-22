@@ -20,20 +20,17 @@ class Resource extends Http {
       method: 'GET',
       ...config,
     }).then(({ data, headers }) => {
-      let disposition = headers?.['content-disposition'] || headers?.['Content-Disposition'] || ''
+      const disposition = headers?.['content-disposition'] || headers?.['Content-Disposition'] || ''
       const pattern = /filename\*?=(?:UTF-8'')?(?:"([^"]+)"|([^;]+))/i
-      let match = disposition.match(pattern)
-      if (!match) {
-        try {
-          disposition = decodeURIComponent(disposition)
-          match = disposition.match(pattern)
-        } catch {}
-      }
+      const match = disposition.match(pattern)
+
       let filename = (match?.[1] || match?.[2])?.trim()
       if (filename) {
         try {
           filename = decodeURIComponent(filename)
-        } catch {}
+        } catch {
+          // 解码失败，保持原始值
+        }
       }
       // uniRequest中data直接返回ObjectURL
       return {

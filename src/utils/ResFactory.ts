@@ -1,14 +1,14 @@
-type ApiInstance<T, R> = MixTypes<T, R> & { readonly $http: R }
-type ParamMethods<T, R> = T & ThisType<ApiInstance<T, R>>
-type MixTypes<T, R> = Omit<R, keyof T> & T
+type ParamMethods<T, R> = T & ThisType<MixTypes<T, R>>
+type MixTypes<T, R> = T & { readonly $http: R }
 
 function mixins(instance: Obj, methods: Obj = {}) {
   for (const key of Object.keys(methods)) {
     const method = methods[key]
-    if (typeof method !== 'function') {
-      throw new TypeError(`资源方法 ${key} 必须是函数`)
+    if (typeof method === 'function') {
+      Reflect.set(instance, key, method.bind(instance))
+    } else {
+      Reflect.set(instance, key, method)
     }
-    Reflect.set(instance, key, method.bind(instance))
   }
 }
 
@@ -40,14 +40,11 @@ export function create<R extends Obj, T extends Obj<Fn>>(
   setupHttp(res)
   mixins(res, methods)
 
-  return res as unknown as ApiInstance<T, R>
+  return res as unknown as MixTypes<T, R>
 }
 
-type BindCreate<R> = <T extends Obj<Fn>>(name: string, methods?: ParamMethods<T, R>) => ApiInstance<T, R>
+type BindCreate<R> = <T extends Obj>(name: string, methods?: ParamMethods<T, R>) => MixTypes<T, R>
 
-export default function factory<R extends Obj>(
-  this: new (...arg: any) => R,
-  config?: DefOptions
-): BindCreate<R> {
+export default function factory<R extends Obj>(this: new (...arg: any) => R, config?: DefOptions): BindCreate<R> {
   return (name, methods) => create.apply(this, [name, methods, config]) as any
 }

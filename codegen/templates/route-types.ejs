@@ -2,7 +2,10 @@
 const { utils, config, route, modelTypes } = it;
 const { _, pascalCase } = utils;
 const { routes, moduleName } = route;
-const dataContracts = config.modular ? _.map(modelTypes, "name") : [];
+const responseSchemaPrefix = config.responseSchema.namePrefix;
+const dataContracts = config.modular
+  ? _.map(modelTypes, "name").filter(name => !responseSchemaPrefix || !name.startsWith(responseSchemaPrefix))
+  : [];
 
 %>
 <% if (dataContracts.length) { %>
