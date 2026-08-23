@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
-import { ApiResource, CacheResult, Http, buildAdapter, fetchAdapter, setLoadingServe } from '../dist/index.js'
+import { ApiResource, Http, buildAdapter, fetchAdapter, setLoadingServe } from '../dist/index.js'
 
 test('API Codegen defineConfig module has a default export and configuration types', async () => {
   const { default: defineConfig } = await import('../codegen/defineConfig.js')
@@ -231,33 +231,6 @@ test('non-function resource extensions are preserved', () => {
   assert.equal(typeof userApi.$http.get, 'function')
 })
 
-test('cache map uses the explicitly configured record key field', async () => {
-  const records = [
-    { id: 0, name: 'zero' },
-    { id: 2, name: 'two' },
-  ]
-  const cache = new CacheResult({ request: async () => records, keyField: 'id' })
-
-  assert.deepEqual(await cache.getMap(), {
-    0: records[0],
-    2: records[1],
-  })
-})
-
-test('cache map is invalidated after a reload', async () => {
-  let version = 1
-  const cache = new CacheResult({
-    request: async () => [{ id: 1, version: version++ }],
-    keyField: 'id',
-  })
-
-  assert.equal((await cache.getMap())[1].version, 1)
-  await delay(1050)
-  await cache.reload()
-
-  assert.equal((await cache.getMap())[1].version, 2)
-})
-
 test('cross-platform upload and download failures reject', async () => {
   const uploadError = new Error('upload failed')
   const downloadError = new Error('download failed')
@@ -319,37 +292,6 @@ test('cross-platform adapter aborts its request task when signaled', async () =>
 
   await assert.rejects(request, (reason) => reason === '用户取消')
   assert.equal(aborted, true)
-})
-
-test('cache map does not infer id as the record key field', async () => {
-  const cache = new CacheResult(async () => [{ id: 1, name: 'one' }])
-
-  assert.equal(await cache.getMap(), undefined)
-})
-
-test('cache recognizes standard dictionaries or explicitly configured dictionary fields', async () => {
-  const records = [{ value: 'enabled', label: '启用' }]
-  const inferred = new CacheResult(async () => records)
-  const configured = new CacheResult({
-    request: async () => records,
-    keyField: 'value',
-    labelField: 'label',
-  })
-
-  assert.deepEqual(await inferred.getMap(), { enabled: '启用' })
-  assert.deepEqual(await inferred.getResult(), records)
-  assert.deepEqual(await configured.getMap(), { enabled: '启用' })
-  assert.deepEqual(await configured.getResult(), [
-    { original: records[0], value: 'enabled', label: '启用' },
-  ])
-})
-
-test('labelField alone is ignored and does not look for value or id', async () => {
-  const records = [{ value: 'enabled', name: '启用', id: 1 }]
-  const cache = new CacheResult({ request: async () => records, labelField: 'name' })
-
-  assert.equal(await cache.getMap(), undefined)
-  assert.deepEqual(await cache.getResult(), records)
 })
 
 test('a new request cancels the previous batch delayed loading close', async () => {

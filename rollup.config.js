@@ -23,7 +23,7 @@ const tsPlugin = ts({
 })
 const mainFile = 'src/index.ts'
 
-const input = [mainFile, 'src/dataCache.ts']
+const input = [mainFile]
 
 const es = {
   input,

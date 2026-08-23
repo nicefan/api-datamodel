@@ -2,7 +2,7 @@
 
 面向业务资源组织前端接口的 TypeScript 请求模型。
 
-`api-datamodel` 不绑定具体请求库，而是在 Axios、UniApp 等请求适配器之上，通过 Resource 统一业务路径、返回数据、加载状态、消息提示、请求取消和查询缓存。常规项目使用一个默认 Resource；涉及多个后台服务时，再按服务域分别配置地址、鉴权和数据规则。项目还提供 API Codegen，可根据 Swagger/OpenAPI 文档生成可调用、可维护、具备类型提示的业务模块 API 实例。
+`api-datamodel` 不绑定具体请求库，而是在 Axios、UniApp 等请求适配器之上，通过 Resource 统一业务路径、返回数据、加载状态、消息提示和请求取消。常规项目使用一个默认 Resource；涉及多个后台服务时，再按服务域分别配置地址、鉴权和数据规则。项目还提供 API Codegen，可根据 Swagger/OpenAPI 文档生成可调用、可维护、具备类型提示的业务模块 API 实例。
 
 ## 核心价值
 
@@ -12,8 +12,7 @@
 - **API Codegen**：根据 Swagger/OpenAPI 文档生成请求代码、数据类型和统一导出文件，减少重复手写和前后端偏差。
 - **请求实现可替换**：核心只依赖请求适配器，可接入 Axios、UniApp、Taro 或自定义实现。
 - **横切能力统一治理**：在一个位置处理服务地址、鉴权、返回结构、Loading、消息提示和异常。
-- **查询结果可复用**：同一方法和参数只创建一份缓存，并可派生记录映射或字典映射。
-- **能力按需组合**：可单独使用 `Http`，也可组合业务资源、代码生成和缓存。
+- **能力按需组合**：可单独使用 `Http`，也可组合业务资源和代码生成。
 
 ## 业务模式
 
@@ -45,7 +44,6 @@
 | 默认资源配置 | 常规项目共享的地址、鉴权和返回规则 | `defaultResourceConfig` |
 | 服务域 Resource | 固定某个后台服务的请求边界 | `createApi`、`createSystemApi` |
 | 业务模块 API 实例 | 聚合同一业务模块的全部操作 | `userApi.list()`、`userApi.save()` |
-| 缓存视图 | 复用查询结果并生成映射 | `userCache.getMap()` |
 
 ```mermaid
 flowchart LR
@@ -68,8 +66,7 @@ src/api/
 ├─ sys/                  # API Codegen 生成的系统管理接口
 │  ├─ Users.ts
 │  └─ index.ts
-├─ workflow/             # API Codegen 生成的工作流接口
-└─ cache/                # 面向页面或 Store 的缓存封装
+└─ workflow/             # API Codegen 生成的工作流接口
 ```
 
 ## 安装
@@ -695,76 +692,6 @@ await request
 userApi.$http.abort('页面已离开')
 ```
 
-## 查询缓存与字典映射
-
-`createCache` 按调用参数的 JSON 序列化结果建立缓存。同一方法使用相同参数调用时，会返回同一个 `CacheResult`。
-
-### 缓存普通查询
-
-```ts
-import { createCache } from 'api-datamodel'
-
-export const getUsers = createCache(userApi.list)
-
-const cache = getUsers({ page: 1 })
-
-// 命令式代码应等待异步结果。
-const page = await cache.getResult()
-
-// result 会触发加载并立即返回当前缓存值，首次访问可能为 undefined，
-// 更适合放在 Vue 等响应式状态中读取。
-const currentPage = cache.result
-
-await cache.reload()
-```
-
-### 建立记录映射
-
-普通记录不会自动猜测 `id` 字段。需要映射时必须明确指定 `keyField`：
-
-```ts
-const getDepartments = createCache({
-  request: deptApi.list,
-  keyField: 'deptId',
-})
-
-const departments = getDepartments()
-const departmentMap = await departments.getMap()
-
-// departmentMap[100] 为完整部门记录。
-```
-
-### 建立字典映射
-
-标准 `{ value, label }` 数组可自动转换为 `value -> label` 映射。非标准字段应同时配置 `keyField` 和 `labelField`：
-
-```ts
-const getStatuses = createCache({
-  request: statusApi.list,
-  keyField: 'code',
-  labelField: 'name',
-})
-
-const statusCache = getStatuses()
-const statusMap = await statusCache.getMap()
-// statusMap.enabled === '启用'
-
-const options = await statusCache.getResult()
-// [{ value: 'enabled', label: '启用', original: 原始记录 }]
-```
-
-`CacheResult` 的主要能力：
-
-| 成员 | 说明 |
-| --- | --- |
-| `getResult()` | 异步取得缓存结果；失败后再次读取会重试 |
-| `result` | 返回当前缓存结果，同时触发异步加载 |
-| `getMap()` | 异步取得记录或字典映射 |
-| `map` | 返回当前映射，同时触发异步构建 |
-| `reload()` | 重新请求并刷新结果与映射 |
-
-需要集中管理多个缓存时，可使用 `createCacheStore({}).produce()` 或 `produceBatch()` 为 Store 建立统一缓存空间和转换逻辑。
-
 ## 文件上传、下载和跨平台适配
 
 ### Web 文件上传与下载
@@ -817,10 +744,6 @@ await userApi.$http.upload('avatar', {
 | `setGlobalConfig` | 合并全局请求配置 |
 | `serviceInit` | 设置全局配置并返回资源工厂 |
 | `setLoadingServe` | 接入全局 Loading 和消息服务 |
-| `createCache` | 为单个异步方法创建按参数缓存 |
-| `CacheResult` | 读取、刷新缓存以及生成映射 |
-| `createCacheStore` | 创建共享缓存空间和批量缓存工厂 |
-| `registBatch` | 一次注册多个缓存方法 |
 | `buildAdapter` | 适配 UniApp/Taro 类跨平台请求 API |
 | `fetchAdapter` | 将浏览器或 Node.js 18+ 的标准 Fetch API 包装为请求适配器 |
 

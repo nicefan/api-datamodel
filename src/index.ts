@@ -4,7 +4,6 @@
  * @Autor: 范阳峰
  */
 export { serviceInit, setLoadingServe, setGlobalConfig, defineConfig } from './service'
-export * from './dataCache'
 /**
  * 标准http请求类
  */
