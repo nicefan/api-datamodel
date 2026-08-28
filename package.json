@@ -22,6 +22,9 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=18.17"
+  },
   "scripts": {
     "build": "rollup -c",
     "lint": "eslint . --fix --ignore-path .gitignore",
@@ -31,7 +34,8 @@
   "dependencies": {
     "inquirer": "^9.1.3",
     "jiti": "^2.7.0",
-    "swagger-typescript-api": "^12.0.4"
+    "swagger-typescript-api": "12.0.4",
+    "yaml": "2.9.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.2",

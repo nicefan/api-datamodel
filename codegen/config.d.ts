@@ -1,5 +1,5 @@
 export interface CodegenApiConfig {
-  /** Swagger/OpenAPI JSON 地址。 */
+  /** Swagger/OpenAPI 的远程地址或本地 JSON/YAML 文件路径。 */
   url: string
   /** 覆盖全局生成根目录。 */
   outputDir?: string
@@ -20,7 +20,24 @@ export interface CodegenApiConfig {
     dataField?: string
   }
   /** 传递给 swagger-typescript-api 的配置。 */
-  generatorOptions?: Record<string, unknown>
+  generatorOptions?: Record<string, unknown> & {
+    /** 自定义模板目录，相对路径以项目目录为基准。 */
+    templates?: string
+  }
+  /** 获取远程文档时使用的请求配置。 */
+  documentRequest?: {
+    /** 请求超时毫秒数，默认 30000。 */
+    timeout?: number
+    /** 请求头，例如鉴权信息。 */
+    headers?: Record<string, string>
+  }
+  /**
+   * 重名方法处理策略，默认 `strip`。
+   * - `strip`：去除自动追加的数字后缀，打印冲突错误并继续生成。
+   * - `keep-suffix`：冲突方法保留数字后缀，打印警告并继续生成。
+   * - `error`：发现冲突后终止生成，保留原输出目录。
+   */
+  duplicateMethodStrategy?: 'strip' | 'keep-suffix' | 'error'
   /** 交互选择时显示的说明。 */
   label?: string
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
@@ -342,6 +342,92 @@ test('API Codegen reports HTTP and invalid JSON document errors clearly', async 
     const jsonResult = await runGenerator(['system'], tempDir)
     assert.equal(jsonResult.code, 1)
     assert.match(jsonResult.stderr, /Swagger 文档不是有效的 JSON：<html>login required<\/html>/)
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+    await rm(tempDir, { recursive: true, force: true })
+  }
+})
+
+test('API Codegen accepts local YAML documents and rejects unknown CLI options', async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'api-datamodel-codegen-yaml-'))
+  try {
+    const documentPath = path.join(tempDir, 'openapi.yaml')
+    await writeFile(
+      documentPath,
+      'openapi: 3.0.0\ninfo:\n  title: Local YAML\n  version: 1.0.0\npaths: {}\n'
+    )
+    const result = await runGenerator([documentPath, 'local'], tempDir)
+    assert.equal(result.code, 0, result.stderr || result.stdout)
+    assert.match(await readFile(path.join(tempDir, 'src/api/local/resource.ts'), 'utf8'), /ApiResource/)
+
+    const invalidOption = await runGenerator(['--unknown'], tempDir)
+    assert.equal(invalidOption.code, 1)
+    assert.match(invalidOption.stderr, /未知选项：--unknown/)
+  } finally {
+    await rm(tempDir, { recursive: true, force: true })
+  }
+})
+
+test('API Codegen sends configured headers when loading a remote document', async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'api-datamodel-codegen-headers-'))
+  const spec = { openapi: '3.0.0', info: { title: 'Headers', version: '1.0.0' }, paths: {} }
+  const server = http.createServer((request, response) => {
+    if (request.headers['x-api-key'] !== 'secret') {
+      response.statusCode = 401
+      response.end('unauthorized')
+      return
+    }
+    response.setHeader('content-type', 'application/json')
+    response.end(JSON.stringify(spec))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const config = {
+      documentRequest: { timeout: 1000, headers: { 'x-api-key': 'secret' } },
+      apis: { system: { url: `http://127.0.0.1:${server.address().port}/openapi.json` } },
+    }
+    await writeFile(path.join(tempDir, 'api-datamodel.config.mjs'), `export default ${JSON.stringify(config)}`)
+    const result = await runGenerator(['system'], tempDir)
+    assert.equal(result.code, 0, result.stderr || result.stdout)
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+    await rm(tempDir, { recursive: true, force: true })
+  }
+})
+
+test('API Codegen preserves existing output when duplicate method strategy stops generation', async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'api-datamodel-codegen-atomic-'))
+  const spec = {
+    openapi: '3.0.0',
+    info: { title: 'Duplicate methods', version: '1.0.0' },
+    paths: {
+      '/users/one': {
+        get: { operationId: 'getUser', tags: ['Users'], responses: { 200: { description: 'ok' } } },
+      },
+      '/users/two': {
+        get: { operationId: 'getUser', tags: ['Users'], responses: { 200: { description: 'ok' } } },
+      },
+    },
+  }
+  const server = http.createServer((_request, response) => {
+    response.setHeader('content-type', 'application/json')
+    response.end(JSON.stringify(spec))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const outputDir = path.join(tempDir, 'generated/clients/system')
+    await mkdir(outputDir, { recursive: true })
+    await writeFile(path.join(outputDir, 'keep.txt'), 'old output')
+    const config = {
+      outputDir: 'generated/clients',
+      duplicateMethodStrategy: 'error',
+      apis: { system: { url: `http://127.0.0.1:${server.address().port}/openapi.json` } },
+    }
+    await writeFile(path.join(tempDir, 'api-datamodel.config.mjs'), `export default ${JSON.stringify(config)}`)
+    const result = await runGenerator(['system'], tempDir)
+    assert.equal(result.code, 1)
+    assert.match(result.stderr, /存在重名方法/)
+    assert.equal(await readFile(path.join(outputDir, 'keep.txt'), 'utf8'), 'old output')
   } finally {
     await new Promise((resolve) => server.close(resolve))
     await rm(tempDir, { recursive: true, force: true })

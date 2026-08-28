@@ -24,7 +24,7 @@ const requestConfigParam = {
 
 const argToTmpl = ({ name, optional, type, defaultValue }) => `${name}${!defaultValue && optional ? '?' : ''}: ${type}${defaultValue ? ` = ${defaultValue}` : ''}`;
 
-const routeName = _.replace(route.raw.operationId, /_\d+$/, '')
+const routeName = route.routeName
 if (payload) {
   const model = modelTypes.find(item => item.name === payload.type)
   if (model && (model.allFieldsAreOptional || payload.optional)) {
@@ -84,7 +84,7 @@ let configStr = '';
 <%~ routeDocs.lines %>
 
  */
-<%~ routeName %>(<%~ wrapperArgs %><%~ wrapperArgs ? ',' : ''%> config?: RequestConfig) {
+<%~ routeName.value %>(<%~ wrapperArgs %><%~ wrapperArgs ? ',' : ''%> config?: RequestConfig) {
     <%
     let output = ''
     if (type == 'void') {

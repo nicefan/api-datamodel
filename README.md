@@ -508,6 +508,12 @@ export default defineConfig({
     namePrefix: 'AjaxResult',
     dataField: 'data',
   },
+  documentRequest: {
+    timeout: 30_000,
+    // headers: { Authorization: 'Bearer ...' },
+  },
+  // strip：去除自动序号并打印错误；keep-suffix：保留序号；error：终止生成。
+  duplicateMethodStrategy: 'strip',
   generatorOptions: {
     cleanOutput: true,
     modular: true,
@@ -555,20 +561,30 @@ apis: {
 | `outputDir` | 全局或单接口 | `src/api` | 生成根目录 |
 | `resource` | 全局或单接口 | `rootPathSource: 'gateway'` | Resource 类导入路径、Factory 前置路径及其来源 |
 | `responseSchema` | 全局或单接口 | `AjaxResult` + `data` | 响应模型包装规则；配置 `namePrefix` 和 `dataField` |
-| `url` | 单接口 | 无 | Swagger/OpenAPI JSON 地址 |
+| `url` | 单接口 | 无 | Swagger/OpenAPI 远程地址或本地 JSON/YAML 文件路径 |
 | `outputFolder` | 单接口 | 当前配置名称 | 输出子目录 |
 | `label` | 单接口 | 配置名称 | 交互选择时显示的名称 |
 | `generatorOptions` | 全局或单接口 | 内置推荐配置 | 传递给 `swagger-typescript-api` 的其他选项 |
+| `documentRequest` | 全局或单接口 | `timeout: 30000` | 远程文档请求的超时和请求头 |
+| `duplicateMethodStrategy` | 全局或单接口 | `strip` | 重名方法处理方式：`strip`、`keep-suffix` 或 `error` |
 
 单接口配置会覆盖全局配置。
+
+`duplicateMethodStrategy` 的行为：
+
+- `strip`：去除 `swagger-typescript-api` 自动追加的数字后缀，打印“接口命名冲突”错误，但继续生成代码。
+- `keep-suffix`：发生冲突时保留自动追加的数字后缀，打印警告并继续生成，确保方法名仍然唯一。
+- `error`：发现冲突立即终止生成；由于正式目录只在生成全部成功后替换，因此原输出代码不会改变。
 
 默认按顺序查找以下文件：
 
 1. `api-datamodel.config.ts`
-2. `api-datamodel.config.mjs`
-3. `api-datamodel.config.js`
-4. `api-datamodel.config.cjs`
-5. `api-datamodel.config.json`
+2. `api-datamodel.config.mts`
+3. `api-datamodel.config.mjs`
+4. `api-datamodel.config.js`
+5. `api-datamodel.config.cts`
+6. `api-datamodel.config.cjs`
+7. `api-datamodel.config.json`
 
 配置文件也可以导出返回配置对象的同步或异步函数。对于未声明 `"type": "module"` 的项目，推荐使用 `.mjs`，或者在 `.cjs` 中使用 `module.exports`。
 
@@ -601,7 +617,10 @@ api-datamodel-codegen --config ./config/api.mjs sys
 
 ```bash
 npx api-datamodel-codegen <文档地址> <输出文件夹>
+npx api-datamodel-codegen ./openapi.yaml --output local
 ```
+
+生成过程先写入同级临时目录，全部成功后才替换正式输出目录；文档、模板或生成过程出错时会保留原有代码。
 
 查看完整命令帮助：
 

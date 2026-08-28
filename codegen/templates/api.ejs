@@ -1,69 +1,26 @@
 <%
 const { utils, route, config, modelTypes } = it;
-const { _, pascalCase, require } = utils;
-const apiClassName = pascalCase(route.moduleName);
-const routes = route.routes;
-
-const responseSchemaPrefix = config.responseSchema.namePrefix;
-const resource = config.resource;
-const resourceRootPath = _.trim(resource.rootPath, "/");
-const isDocumentRootPath = resource.rootPathSource === "document";
-const resourceRootPathSegments = _.compact(_.split(resourceRootPath, "/"));
-const documentPathPrefixes = isDocumentRootPath
-  ? resourceRootPathSegments.map((_, index) => `/${resourceRootPathSegments.slice(index).join("/")}`)
-  : [];
-const stripDocumentPathPrefix = (value) => {
-  const routePath = value.startsWith("/") ? value : `/${value}`;
-  const matchedPrefix = documentPathPrefixes.find(
-    prefix => routePath === prefix || routePath.startsWith(`${prefix}/`)
-  );
-  return matchedPrefix ? routePath.slice(matchedPrefix.length) || "/" : routePath;
-};
-const dataContracts = _.map(modelTypes, "name").filter(
-  name => !responseSchemaPrefix || !name.startsWith(responseSchemaPrefix)
-);
+const { pascalCase } = utils;
+const context = config.codegen.normalizeModule({
+  moduleRoute: route,
+  combinedModules: it.routes.combined,
+  modelTypes,
+  pascalCase,
+});
+const { dataContracts, moduleName, resourceName, routes } = context;
 %>
 
 <% if (dataContracts.length) { %>
 import type { <%~ dataContracts.join(", ") %> } from "./<%~ config.fileNames.dataContracts %>"
 <% } %>
 
-<%
-const pathArr = _.split(stripDocumentPathPrefix(routes[0].request.path), '/')
-const fristName = pathArr[1]
-let moduleName = fristName
-if (it.routes.combined.find(item => {
-  const itemPath = stripDocumentPathPrefix(item.routes[0].request.path)
-  return item.moduleName !== route.moduleName && itemPath.startsWith(`/${fristName}/`)
-})) {
-  moduleName += pascalCase(pathArr[2])
-}
-// 仅比较一级路径会遗漏 `/duty/item` 与 `/dutyItem/home` 这类拼接后重名的情况。
-// 一旦默认命名冲突，使用第二段路径区分 API，确保 barrel export 可被安全加载。
-const currentNameCount = it.routes.combined.filter((item) => {
-  const itemPath = _.split(stripDocumentPathPrefix(item.routes[0].request.path), '/')
-  let itemName = itemPath[1]
-  if (it.routes.combined.find(other => {
-    const otherPath = stripDocumentPathPrefix(other.routes[0].request.path)
-    return other.moduleName !== item.moduleName && otherPath.startsWith(`/${itemPath[1]}/`)
-  })) {
-    itemName += pascalCase(itemPath[2])
-  }
-  return itemName === moduleName
-}).length
-if (currentNameCount > 1) {
-  moduleName = fristName + pascalCase(pathArr[2])
-}
-%>
-
 import createApi from "./resource";
 /**
 * <%~ routes[0].raw.tags.join(", ") %>
 
 **/
-export const <%= moduleName %>Api = createApi('<%= fristName %>', {
+export const <%= moduleName %>Api = createApi('<%= resourceName %>', {
     <% routes.forEach((route) => { %>
-        <% route.request.shortPath = _.replace(stripDocumentPathPrefix(route.request.path), `/${fristName}`, '') %>
         <%~ includeFile('./procedure-call.ejs', { ...it, route }) %>
     <% }) %>
 })
