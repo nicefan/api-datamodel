@@ -6,20 +6,20 @@
  * @LastEditTime: 2021-08-17 18:34:34
  */
 
-export function buildAdapter<F extends Obj>(frame: F) {
+export function buildAdapter<F extends Obj>(platform: F) {
   function request({ url, params = {}, data = params, headers = {}, ...config }: Required<RequestConfig>) {
     const { 'content-type': type, ..._header } = headers
     if (data.filePath && type === 'multipart/form-data') {
-      return _upload(url, data, _header, config.signal)
+      return upload(url, data, _header, config.signal)
     }
     if (config.responseType === 'blob') {
-      return _download(url, headers, config.signal)
+      return download(url, headers, config.signal)
       // return fetch(new Request(baseURL + url, { headers }))
       // .then(response => response.blob())
     }
 
     return new Promise((resolve, reject) => {
-      const task = frame.request({
+      const task = platform.request({
         url,
         data,
         header: headers,
@@ -64,9 +64,9 @@ export function buildAdapter<F extends Obj>(frame: F) {
     })
   }
 
-  function _upload(url: string, { filePath, fileKey, ...formData }: Obj = {}, header: Obj, signal?: AbortSignal) {
+  function upload(url: string, { filePath, fileKey, ...formData }: Obj = {}, header: Obj, signal?: AbortSignal) {
     return new Promise((resolve, reject) => {
-      const task = frame.uploadFile({
+      const task = platform.uploadFile({
         url,
         filePath,
         name: fileKey,
@@ -97,9 +97,9 @@ export function buildAdapter<F extends Obj>(frame: F) {
   }
 
   /** 发起一个 HTTP GET 请求，返回文件的本地临时路径 */
-  function _download(url: string, header: Obj, signal?: AbortSignal) {
+  function download(url: string, header: Obj, signal?: AbortSignal) {
     return new Promise((resolve, reject) => {
-      const task = frame.downloadFile({
+      const task = platform.downloadFile({
         url,
         header,
         success({ tempFilePath, statusCode: code, data }: any) {

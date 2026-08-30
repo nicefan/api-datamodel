@@ -11,6 +11,9 @@ const pathParams = _.values(parameters);
 const pathParamsNames = _.map(pathParams, "name");
 
 const isFetchTemplate = config.httpClientType === HTTP_CLIENT.FETCH;
+const responseSchema = config.responseSchema;
+const responseSchemaPrefix = responseSchema.namePrefix;
+const responseDataField = responseSchema.dataField;
 
 const requestConfigParam = {
     name: specificArgNameResolver.resolve(RESERVED_REQ_PARAMS_ARG_NAMES),
@@ -21,7 +24,7 @@ const requestConfigParam = {
 
 const argToTmpl = ({ name, optional, type, defaultValue }) => `${name}${!defaultValue && optional ? '?' : ''}: ${type}${defaultValue ? ` = ${defaultValue}` : ''}`;
 
-const routeName = _.replace(route.raw.operationId, /_\d+$/, '')
+const routeName = route.routeName
 if (payload) {
   const model = modelTypes.find(item => item.name === payload.type)
   if (model && (model.allFieldsAreOptional || payload.optional)) {
@@ -65,39 +68,62 @@ const responseContentKind = {
     "FORM_DATA": isFetchTemplate ? '"formData"' : '"document"'
 }
 
+let queryTmpl = (query != null && queryName) || undefined;
 const bodyTmpl = _.get(payload, "name") || undefined;
-const queryTmpl = (query != null && queryName) || undefined;
 const bodyContentKindTmpl = requestContentKind[requestBodyInfo.contentKind] || null;
 const responseFormatTmpl = responseContentKind[responseBodyInfo.success && responseBodyInfo.success.schema && responseBodyInfo.success.schema.contentKind] || null;
 const securityTmpl = security ? 'true' : null;
 
+if (pathParams.length && !shortPath.endsWith('}')) {
+  queryTmpl = `{ ${pathParamsNames.join(', ')} }`
+}
 
 let configStr = '';
-[
-  ['method', `'${_.upperCase(method)}'`],
-  ['data', bodyTmpl],
-  ['params', queryTmpl]
-].forEach(([k, v]) => v && (configStr += `${k}: ${v},`));
 %>
 /**
 <%~ routeDocs.lines %>
 
  */
-<%~ routeName %>(<%~ wrapperArgs %><%~ wrapperArgs ? ',' : ''%> config?: RequestConfig) {
+<%~ routeName.value %>(<%~ wrapperArgs %><%~ wrapperArgs ? ',' : ''%> config?: RequestConfig) {
     <%
     let output = ''
     if (type == 'void') {
-      output =`return this.downloadFile(\`${shortPath}\`, { ${configStr} ...config})`
+      [
+        ['method', `'${_.upperCase(method)}'`],
+        ['data', bodyTmpl],
+        ['params', queryTmpl]
+      ].forEach(([k, v]) => v && (configStr += `${k}: ${v},`));
+      output =`return this.$http.downloadFile(\`${shortPath}\`, { ${configStr} ...config})`
     } else {
-      let _type = type === 'AjaxResult' ? '' : type
-      const model = _type.startsWith('AjaxResult') && modelTypes.find(item => item.name === type)
+      const isWrappedResponse = Boolean(responseSchemaPrefix && type.startsWith(responseSchemaPrefix))
+      let _type = isWrappedResponse ? '' : type
+      const model = isWrappedResponse && modelTypes.find(item => item.name === type)
       if (model) {
-        _type =  model.properties.data.$parsed.content
-        if (!model.properties.data.type) {
+        const dataProperty = model.properties?.[responseDataField]
+        if (dataProperty) {
+          _type = dataProperty.$parsed.content
+        }
+        if (dataProperty && !dataProperty.type) {
           _type = `Required<${_type}>`
         }
       }
-      output = `return this.${_.lowerCase(method)}${_type && `<${_type}>`}(\`${shortPath}\`, ${queryTmpl || bodyTmpl}, config)`
+      configStr = (bodyTmpl && queryTmpl) ? `{ params:${queryTmpl}, ...config }` : 'config'
+      _type &&= `<${_type}>`
+      const _method = _.lowerCase(method)
+      const shortcutMethods = ['get', 'post', 'put', 'delete']
+      if (!shortcutMethods.includes(_method)) {
+        const requestOptions = [
+          bodyTmpl && `data: ${bodyTmpl}`,
+          queryTmpl && `params: ${queryTmpl}`,
+          '...config',
+          `method: '${_.upperCase(method)}'`,
+        ].filter(Boolean).join(', ')
+        output = `return this.$http.request${_type}(\`${shortPath}\`, { ${requestOptions} })`
+      } else if (_method !== 'get' && queryTmpl ) {
+        output = `return this.$http.${_method}${_type}(\`${shortPath}\`, ${bodyTmpl}, { params: ${queryTmpl}, ...config})`
+      } else {
+        output = `return this.$http.${_method}${_type}(\`${shortPath}\`, ${queryTmpl || bodyTmpl}, config)`
+      }
     }
     %>
     <%~ output %>

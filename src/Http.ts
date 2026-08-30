@@ -1,155 +1,119 @@
-import { defaultOptions } from './service'
-import factory, { create } from './utils/ResFactory'
-import MessageHandle from './utils/messageHandle'
-import merge from 'lodash/merge'
+import requestManager from './utils/requestManager'
+import { buildService, type HttpConstructor } from './service'
+
+function joinUrl(serverUrl = '', ...paths: Array<string | undefined>) {
+  const normalizedPaths = paths
+    .filter((path): path is string => Boolean(path))
+    .map((path) => path.replace(/^\/+|\/+$/g, ''))
+    .filter(Boolean)
+
+  if (!normalizedPaths.length) return serverUrl || ''
+  if (serverUrl === '/') return `/${normalizedPaths.join('/')}`
+
+  const normalizedServerUrl = serverUrl.replace(/\/+$/g, '')
+  return normalizedServerUrl
+    ? `${normalizedServerUrl}/${normalizedPaths.join('/')}`
+    : normalizedPaths.join('/')
+}
 
 class Http {
-  /** 工厂模式快速创建实例 */
-  static create = create
-  static factory = factory
-  static ERROR = new TypeError('Api instance undefined!')
-  protected static options: Partial<DefOptions> = {}
+  static defaultOptions: Partial<HttpOptions> = {}
 
-  /** 请求返回后可用于处理消息提示 */
-  setMessage!: MessageHandle['setMessage']
+  protected readonly resolvedOptions: Partial<HttpOptions>
+  private readonly requestBaseUrl: string
 
-  protected requestConfig: RequestConfig = {}
-  private abortControllers = new Set<AbortController>()
-
-  private basePath = ''
-  private options
-  constructor(arg1?: string | DefOptions, arg2?: DefOptions) {
-    const path = typeof arg1 === 'string' ? arg1 : ''
-    const config = typeof arg1 === 'object' ? arg1 : arg2
-    this.options = { ...defaultOptions, ...new.target.options, ...config }
-
-    // config && this.setDefault(config)
-    const { serverUrl = '', rootPath = '' } = this.options
-    this.basePath = serverUrl + (!path ? rootPath : path.startsWith('/') ? path : `${rootPath}/${path}`)
+  constructor(optionsOrModulePath?: string | HttpOptions, instanceOptions?: HttpOptions) {
+    const modulePath = typeof optionsOrModulePath === 'string' ? optionsOrModulePath : ''
+    const options = typeof optionsOrModulePath === 'object' ? optionsOrModulePath : instanceOptions
+    this.resolvedOptions = options ? { ...new.target.defaultOptions, ...options } : new.target.defaultOptions
+    const { serverUrl, rootPath } = this.resolvedOptions
+    this.requestBaseUrl = joinUrl(serverUrl, rootPath, modulePath)
   }
 
-  protected setDefault(config: RequestConfig) {
-    merge(this.requestConfig, config)
+  static createService<H extends Http>(this: HttpConstructor<H>, options: HttpOptions) {
+    return buildService(this, options)
   }
 
-  /** 请求数据消息处理 */
-  protected interceptorResolve(response) {
-    const { code, message, data, success } = response.data || {}
-    if (success === undefined && code === undefined) {
-      return response.data
-    } else if (success === false) {
-      return Promise.reject({
-        ...response,
-        code,
-        message,
-        setMessage: this.setMessage,
-      })
-    } else {
-      this.setMessage({ code, message })
-      return data
-    }
+  /** 设置当前请求批次的手动成功消息 */
+  setMessage(message: MessageData | string = '') {
+    requestManager.setMessage(message)
   }
 
-  post<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
-    return this.request<T>(url, {
-      ...config,
-      data,
-      method: 'POST',
-    })
+  post<T = any>(requestPath: string, data?: Obj, config: RequestConfig = {}) {
+    return this.request<T>(requestPath, { ...config, data, method: 'POST' })
   }
 
-  get<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
-    return this.request<T>(url, {
-      ...config,
-      method: 'GET',
-      params: data,
-    })
+  get<T = any>(requestPath: string, data?: Obj, config: RequestConfig = {}) {
+    return this.request<T>(requestPath, { ...config, method: 'GET', params: data })
   }
 
-  put<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
-    return this.request<T>(url, {
-      ...config,
-      data,
-      method: 'PUT',
-    })
+  put<T = any>(requestPath: string, data?: Obj, config: RequestConfig = {}) {
+    return this.request<T>(requestPath, { ...config, data, method: 'PUT' })
   }
 
-  delete<T = any>(url: string, data?: Obj, config: RequestConfig = {}) {
-    return this.request<T>(url, {
-      ...config,
-      params: data,
-      method: 'DELETE',
-    })
+  delete<T = any>(requestPath: string, data?: Obj, config: RequestConfig = {}) {
+    return this.request<T>(requestPath, { ...config, params: data, method: 'DELETE' })
   }
 
-  /** 中止当前资源所有进行中的请求 */
-  abort(reason?: any) {
-    this.abortControllers.forEach((controller) => controller.abort(reason))
-    this.abortControllers.clear()
-  }
+  request<R = any>(requestPath: string, config: RequestConfig = {}) {
+    const { adapter, defRequestConfig, requestInterceptors, transformResponse } = this.resolvedOptions
+    if (!adapter) throw new Error('request对象暂未定义，请先初始化！')
 
-  request<R = any>(path: string, config: RequestConfig = {}) {
-    const { adapter, defRequestConfig, requestInterceptors, transformResponse } = this.options
-    if (!adapter) {
-      throw new Error('request对象暂未定义，请先初始化！')
-    }
-    // 全局配置-> 业务配置 -> 实例配置 -> 请求配置
-    const { backendLoad, silent, messageMode, IgnoreInterceptor, ..._config } = merge(
-      {},
-      defRequestConfig,
-      this.requestConfig,
-      config
-    )
+    const mergedConfig = { ...defRequestConfig, ...config }
+    const { silent, messageMode, rawResponse, ...adapterConfig } = mergedConfig
+    const externalSignal = adapterConfig.signal
     const controller = new AbortController()
-    const signal = _config.signal
-    const abort = () => controller.abort(signal?.reason)
-    if (signal?.aborted) {
-      abort()
-    } else {
-      signal?.addEventListener('abort', abort, { once: true })
-    }
-    _config.signal = controller.signal
-    this.abortControllers.add(controller)
-    const url = this.basePath + (path && !path.startsWith('/') ? '/' : '') + path
+    const abort = () => controller.abort(externalSignal?.reason)
 
-    const msgHandle = new MessageHandle({ backendLoad, silent, messageMode })
-    this.setMessage = msgHandle.setMessage.bind(msgHandle)
-    // 请求前的请求拦截操作
-    let requestConfig = { url, ..._config }
-    requestConfig = requestInterceptors?.(requestConfig) || requestConfig
+    if (externalSignal?.aborted) abort()
+    else externalSignal?.addEventListener('abort', abort, { once: true })
 
-    const request = adapter(requestConfig)
+    const activeRequest = requestManager.start(controller, { silent, messageMode })
+    const url = joinUrl(this.requestBaseUrl, requestPath)
+    let finalRequestConfig: RequestConfig
+
+    const request = Promise.resolve()
+      .then(() => {
+        if (controller.signal.aborted) return Promise.reject(controller.signal.reason)
+        const initialConfig = { url, ...adapterConfig, signal: controller.signal }
+        const interceptedConfig = requestInterceptors?.(initialConfig) || initialConfig
+        // 全局中止必须始终控制实际交给 adapter 的信号。
+        finalRequestConfig = { ...interceptedConfig, signal: controller.signal }
+        return adapter(finalRequestConfig)
+      })
       .then((response) => {
-        msgHandle.setup()
-
         if (
-          IgnoreInterceptor ||
-          (IgnoreInterceptor !== false && requestConfig.responseType && requestConfig.responseType !== 'json')
+          rawResponse ||
+          (rawResponse !== false &&
+            finalRequestConfig.responseType &&
+            finalRequestConfig.responseType !== 'json')
         ) {
           return response
         }
-        const data = response.data
-        // 返回数据格式化处理
-        if (transformResponse) {
-          response.data = transformResponse(data)
+
+        if (transformResponse) response.data = transformResponse(response?.data)
+
+        const { code, message, data, success } = response?.data || {}
+        if (success === undefined && code === undefined) return response?.data
+        if (success === false) {
+          return Promise.reject({ ...response, code, message, setMessage: this.setMessage.bind(this) })
         }
-        return this.interceptorResolve(response)
+
+        requestManager.addBackendSuccess(activeRequest, { code, message })
+        return data
+      })
+      .catch((error) => {
+        requestManager.handleError(activeRequest, error)
+        return Promise.reject(error)
       })
       .finally(() => {
-        signal?.removeEventListener('abort', abort)
-        this.abortControllers.delete(controller)
+        externalSignal?.removeEventListener('abort', abort)
+        requestManager.complete(activeRequest)
       })
-
-    Promise.resolve(request)
-      .catch((err) => {
-        const code = err?.code || err?.status || -1
-        msgHandle.setup({ ...err, code })
-      })
-      .then(() => {})
 
     return request as Promise<R>
   }
 }
 
-/** 通用实例，新实例使用create方法 */
+export { joinUrl }
 export default Http

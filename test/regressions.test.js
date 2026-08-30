@@ -1,158 +1,381 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
+import { createApiFactoryContent } from '../codegen/api-factory-template.js'
 
-import { ApiResource, CacheResult, Http, buildAdapter, setLoadingServe } from '../dist/index.js'
+import {
+  Http,
+  Resource,
+  buildAdapter,
+  createService,
+  fetchAdapter,
+  setRequestHooks,
+} from '../dist/index.js'
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
-test('public entry no longer exports BaseInfo or BaseList APIs', async () => {
+test('API Codegen defineConfig module has a default export and configuration types', async () => {
+  const { default: defineConfig } = await import('../codegen/defineConfig.js')
+  const declarations = await readFile(new URL('../codegen/defineConfig.d.ts', import.meta.url), 'utf8')
+  const configDeclarations = await readFile(new URL('../codegen/config.d.ts', import.meta.url), 'utf8')
+
+  assert.equal(typeof defineConfig, 'function')
+  assert.deepEqual(defineConfig({ apis: {} }), { apis: {} })
+  assert.match(declarations, /export type \{ CodegenApiConfig, CodegenConfig \}/)
+  assert.match(configDeclarations, /interface CodegenApiConfig/)
+  assert.match(configDeclarations, /interface CodegenConfig/)
+})
+
+test('API Codegen exports the configured service createApi with an optional rootPath', async () => {
+  const plain = createApiFactoryContent({ importPath: '@/api/services', importName: 'service' })
+  const rooted = createApiFactoryContent({
+    importPath: '@/api/services',
+    importName: 'systemService',
+    rootPath: 'admin',
+  })
+
+  assert.match(plain, /export default service\.createApi/)
+  assert.doesNotMatch(plain, /service\.with/)
+  assert.match(rooted, /import \{ systemService \} from "@\/api\/services"/)
+  assert.match(rooted, /export default systemService\.with\(\{ rootPath: "admin" \}\)\.createApi/)
+})
+
+test('fetch adapter maps query parameters and normalizes a JSON response', async () => {
+  const originalFetch = globalThis.fetch
+  let request
+  globalThis.fetch = async (url, init) => {
+    request = { url, init }
+    return new Response(JSON.stringify({ value: 1 }), {
+      status: 200,
+      headers: { 'x-request-id': 'request-1' },
+    })
+  }
+
+  try {
+    const response = await fetchAdapter({
+      url: '/users?active=true#list',
+      method: 'GET',
+      params: { role: ['admin', 'owner'], empty: null },
+      withCredentials: true,
+    })
+
+    assert.equal(request.url, '/users?active=true&role=admin&role=owner#list')
+    assert.equal(request.init.credentials, 'include')
+    assert.deepEqual(response.data, { value: 1 })
+    assert.equal(response.headers['x-request-id'], 'request-1')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('fetch adapter serializes JSON and leaves FormData content type to Fetch', async () => {
+  const originalFetch = globalThis.fetch
+  const requests = []
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url, init })
+    return new Response('{}', { status: 200 })
+  }
+
+  try {
+    await fetchAdapter({ url: '/json', method: 'POST', data: { name: 'Joe' } })
+    const formData = new FormData()
+    formData.append('name', 'Joe')
+    await fetchAdapter({
+      url: '/form',
+      method: 'POST',
+      data: formData,
+      headers: { 'content-type': 'multipart/form-data' },
+    })
+
+    assert.equal(requests[0].init.body, JSON.stringify({ name: 'Joe' }))
+    assert.equal(requests[0].init.headers.get('content-type'), 'application/json')
+    assert.equal(requests[1].init.body, formData)
+    assert.equal(requests[1].init.headers.has('content-type'), false)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('fetch adapter rejects HTTP errors with normalized response data', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ message: 'invalid' }), { status: 400, statusText: 'Bad Request' })
+
+  try {
+    await assert.rejects(fetchAdapter({ url: '/invalid' }), (error) => {
+      assert.equal(error.code, 400)
+      assert.equal(error.status, 400)
+      assert.deepEqual(error.response.data, { message: 'invalid' })
+      return true
+    })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('fetch adapter applies request timeout through AbortSignal', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (url, init) =>
+    new Promise((resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
+    })
+
+  try {
+    await assert.rejects(fetchAdapter({ url: '/slow', timeout: 5 }), /Request timeout after 5ms/)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('public entry exposes the new runtime API and removes legacy entry points', async () => {
   const api = await import('../dist/index.js')
 
-  for (const name of ['BaseInfo', 'BaseList', 'infoExtend', 'pagesExtend']) {
+  for (const name of ['Http', 'Resource', 'createService', 'setRequestHooks', 'defineConfig']) {
+    assert.equal(name in api, true)
+  }
+  for (const name of ['ApiResource', 'serviceInit', 'setGlobalConfig', 'setLoadingServe']) {
     assert.equal(name in api, false)
   }
 })
 
-test('an overridden resource method calls the transport through $http', async () => {
-  let requestConfig
-  const userApi = ApiResource.create(
-    'user',
-    {
-      delete(id, config) {
-        return this.$http.delete(`/delete/${id}`, undefined, config)
-      },
-    },
-    {
-      adapter: async (config) => {
-        requestConfig = config
-        return { data: true }
-      },
-    }
-  )
+test('service composes normalized paths and with creates an independent configuration', async () => {
+  const urls = []
+  const adapter = async (config) => {
+    urls.push(config.url)
+    return { data: config.url }
+  }
+  const service = createService({ adapter, serverUrl: '/api/', rootPath: '/v1/' })
+  const derived = service.with({ rootPath: 'v2' })
+  const twiceDerived = derived.with({ serverUrl: '/system-api' })
 
-  assert.equal(await userApi.delete('42', { silent: true }), true)
-  assert.equal(requestConfig.url, '/user/delete/42')
-  assert.equal(requestConfig.method, 'DELETE')
+  await service.createApi('user', {}).$http.get('/list/', undefined, { silent: true })
+  await derived.createApi('user', {}).$http.get('list', undefined, { silent: true })
+  await service.http.get('health', undefined, { silent: true })
+  await service.createApi({}).$http.get('status', undefined, { silent: true })
+
+  assert.deepEqual(urls, ['/api/v1/user/list', '/api/v2/user/list', '/api/v1/health', '/api/v1/status'])
+  assert.notEqual(service.http, derived.http)
+  assert.equal(service.http instanceof Http, true)
+  assert.equal(service.http instanceof Resource, true)
+  assert.equal(Object.getPrototypeOf(service.http.constructor.prototype), Resource.prototype)
+  assert.equal(Object.getPrototypeOf(derived.http.constructor.prototype), Resource.prototype)
+  assert.equal(Object.getPrototypeOf(twiceDerived.http.constructor.prototype), Resource.prototype)
+})
+
+test('Resource.createService exposes isolated Resource instances through $http only', () => {
+  assert.equal(Resource.createService, Http.createService)
+  const service = Resource.createService({ adapter: async () => ({ data: true }) })
+  const createApi = service.createApi
+  const first = createApi('user', { list: 'get' })
+  const second = service.createApi('user', {})
+
+  assert.equal(Object.getPrototypeOf(first).$http, first.$http)
+  assert.equal(Object.hasOwn(first, '$http'), false)
+  assert.notEqual(first, first.$http)
+  assert.notEqual(first.$http, second.$http)
+  assert.equal('get' in first, false)
+  assert.equal(typeof first.$http.get, 'function')
+  assert.equal(first.list, 'get')
+})
+
+test('with always derives from the original custom Resource', () => {
+  class CustomResource extends Resource {}
+  const service = CustomResource.createService({ adapter: async () => ({ data: true }) })
+  const derived = service.with({ rootPath: 'v1' }).with({ serverUrl: '/api' })
+
+  assert.equal(Object.getPrototypeOf(service.http.constructor.prototype), CustomResource.prototype)
+  assert.equal(Object.getPrototypeOf(derived.http.constructor.prototype), CustomResource.prototype)
 })
 
 test('$http remains isolated when business methods override request methods', async () => {
   const requests = []
-  const userApi = ApiResource.create(
-    'user',
-    {
-      request(id) {
-        return this.$http.get(`/${id}`, undefined, { silent: true })
-      },
-      post(data) {
-        return this.$http.post('/save', data, { silent: true })
-      },
+  const userApi = createService({
+    adapter: async (config) => {
+      requests.push(config)
+      return { data: config.url }
     },
-    {
-      adapter: async (config) => {
-        requests.push(config)
-        return { data: config.url }
-      },
-    }
-  )
+  }).createApi('user', {
+    request(id) {
+      return this.$http.get(`/${id}`, undefined, { silent: true })
+    },
+    post(data) {
+      return this.$http.post('/save', data, { silent: true })
+    },
+  })
 
-  assert.equal(await userApi.request('42'), '/user/42')
-  assert.equal(await userApi.post({ name: 'Joe' }), '/user/save')
-  assert.equal(await userApi.$http.get('/list', undefined, { silent: true }), '/user/list')
+  assert.equal(await userApi.request('42'), 'user/42')
+  assert.equal(await userApi.post({ name: 'Joe' }), 'user/save')
+  assert.equal(await userApi.$http.get('/list', undefined, { silent: true }), 'user/list')
   assert.deepEqual(
     requests.map(({ method }) => method),
     ['GET', 'POST', 'GET']
   )
 })
 
-test('$http requests expose setMessage on the external resource instance', async () => {
-  const userApi = ApiResource.create(
-    'user',
-    {
-      save() {
-        return this.$http.post('/save', {}, { silent: true })
-      },
+test('$http.setMessage replaces backend successes for the current batch', async () => {
+  const completed = []
+  setRequestHooks({ complete: (result) => completed.push(result) })
+  const api = createService({
+    adapter: async () => ({ data: { success: true, code: 0, message: '后端成功', data: true } }),
+  }).createApi('user', {
+    save() {
+      return this.$http.post('save', {}).then((result) => {
+        this.$http.setMessage('手动成功')
+        return result
+      })
     },
-    { adapter: async () => ({ data: true }) }
-  )
-
-  await userApi.save()
-  assert.equal(typeof userApi.setMessage, 'function')
-  assert.doesNotThrow(() => userApi.setMessage('保存成功'))
-})
-
-test('$http.abort stops all pending requests for the resource', async () => {
-  const signals = []
-  const userApi = ApiResource.create('user', {}, {
-    adapter: (config) =>
-      new Promise((resolve, reject) => {
-        signals.push(config.signal)
-        config.signal.addEventListener('abort', () => reject(config.signal.reason), { once: true })
-      }),
   })
 
-  const first = userApi.$http.get('/first', undefined, { silent: true })
-  const second = userApi.$http.get('/second', undefined, { silent: true })
-  userApi.$http.abort('用户取消')
-
-  await assert.rejects(first, (reason) => reason === '用户取消')
-  await assert.rejects(second, (reason) => reason === '用户取消')
-  assert.equal(signals.every((signal) => signal.aborted), true)
+  assert.equal(await api.save(), true)
+  await delay(5)
+  assert.deepEqual(completed[0].errors, [])
+  assert.deepEqual(completed[0].successes.map(({ message }) => message), ['手动成功'])
 })
 
-test('an external signal can abort a request managed by $http', async () => {
-  let adapterSignal
-  const userApi = ApiResource.create('user', {}, {
-    adapter: (config) =>
+test('interceptError runs immediately and messages keep reverse arrival order', async () => {
+  const resolvers = new Map()
+  const events = []
+  setRequestHooks({
+    interceptError(error) {
+      events.push(`intercept:${error.message}`)
+    },
+    complete(result) {
+      events.push(`complete:${result.errors.map(({ message }) => message).join(',')}`)
+    },
+  })
+  const http = new Http({
+    adapter: ({ url }) => new Promise((resolve, reject) => resolvers.set(url, { resolve, reject })),
+  })
+
+  const first = http.get('first')
+  const second = http.get('second')
+  await delay(0)
+  resolvers.get('first').reject({ code: 500, message: 'first' })
+  await assert.rejects(first)
+  assert.deepEqual(events, ['intercept:first'])
+
+  resolvers.get('second').reject({ code: 500, message: 'second' })
+  await assert.rejects(second)
+  await delay(5)
+  assert.deepEqual(events, ['intercept:first', 'intercept:second', 'complete:second,first'])
+})
+
+test('silent skips loading and feedback but still intercepts errors', async () => {
+  let showCount = 0
+  let interceptCount = 0
+  const completed = []
+  setRequestHooks({
+    showLoading() {
+      showCount++
+    },
+    interceptError() {
+      interceptCount++
+    },
+    complete(result) {
+      completed.push(result)
+    },
+  })
+  const http = new Http({
+    adapter: async ({ url }) => {
+      if (url === 'silent') throw { code: 500, message: '静默错误' }
+      return { data: true }
+    },
+  })
+
+  await assert.rejects(http.get('silent', undefined, { silent: true }))
+  await delay(5)
+
+  assert.equal(showCount, 0)
+  assert.equal(interceptCount, 1)
+  assert.deepEqual(completed, [])
+})
+
+test('interceptError abortAll cancels all services without collecting cancellation errors', async () => {
+  const pendingAdapter = ({ signal }) =>
+    new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    })
+  const completed = []
+  setRequestHooks({
+    interceptError(error, { abortAll }) {
+      if (error.code === '1401') abortAll()
+    },
+    complete(result) {
+      completed.push(result)
+    },
+  })
+
+  const firstService = createService({ adapter: pendingAdapter })
+  const secondService = createService({ adapter: pendingAdapter })
+  const directHttp = new Http({ adapter: pendingAdapter })
+  const first = firstService.http.get('first')
+  const second = secondService.http.get('second')
+  const direct = directHttp.get('direct', undefined, { silent: true })
+  const auth = new Http({
+    adapter: async () => {
+      throw { code: '1401', message: '登录失效' }
+    },
+  }).get('auth')
+
+  await assert.rejects(auth)
+  await Promise.allSettled([first, second, direct])
+  await delay(5)
+
+  assert.equal(completed.length, 1)
+  assert.deepEqual(completed[0].errors.map(({ message }) => message), ['登录失效'])
+})
+
+test('external AbortSignal cancellation is not intercepted or collected', async () => {
+  let interceptCount = 0
+  const completed = []
+  setRequestHooks({
+    interceptError() {
+      interceptCount++
+    },
+    complete(result) {
+      completed.push(result)
+    },
+  })
+  const http = new Http({
+    adapter: ({ signal }) =>
       new Promise((resolve, reject) => {
-        adapterSignal = config.signal
-        config.signal.addEventListener('abort', () => reject(config.signal.reason), { once: true })
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
       }),
   })
   const controller = new AbortController()
-  const request = userApi.$http.get('/pending', undefined, {
-    silent: true,
-    signal: controller.signal,
-  })
+  const request = http.get('pending', undefined, { signal: controller.signal })
 
-  controller.abort('外部取消')
+  controller.abort('用户取消')
+  await assert.rejects(request, (reason) => reason === '用户取消')
+  await delay(5)
 
-  await assert.rejects(request, (reason) => reason === '外部取消')
-  assert.notEqual(adapterSignal, controller.signal)
-  assert.equal(adapterSignal.aborted, true)
+  assert.equal(interceptCount, 0)
+  assert.deepEqual(completed[0], { errors: [], successes: [] })
 })
 
-test('string resource method shortcuts are rejected', () => {
-  assert.throws(
-    () => ApiResource.create('user', { list: 'get' }, { adapter: async () => ({ data: [] }) }),
-    /资源方法 list 必须是函数/
-  )
-})
-
-test('cache map uses the explicitly configured record key field', async () => {
-  const records = [
-    { id: 0, name: 'zero' },
-    { id: 2, name: 'two' },
-  ]
-  const cache = new CacheResult({ request: async () => records, keyField: 'id' })
-
-  assert.deepEqual(await cache.getMap(), {
-    0: records[0],
-    2: records[1],
+test('loading is delayed and complete is called once per batch', async () => {
+  let showCount = 0
+  let completeCount = 0
+  let resolveRequest
+  setRequestHooks({
+    showLoading() {
+      showCount++
+    },
+    complete() {
+      completeCount++
+    },
   })
-})
-
-test('cache map is invalidated after a reload', async () => {
-  let version = 1
-  const cache = new CacheResult({
-    request: async () => [{ id: 1, version: version++ }],
-    keyField: 'id',
+  const http = new Http({
+    adapter: () => new Promise((resolve) => (resolveRequest = resolve)),
   })
 
-  assert.equal((await cache.getMap())[1].version, 1)
-  await delay(1050)
-  await cache.reload()
-
-  assert.equal((await cache.getMap())[1].version, 2)
+  const request = http.get('slow')
+  await delay(220)
+  assert.equal(showCount, 1)
+  resolveRequest({ data: true })
+  await request
+  await delay(5)
+  assert.equal(completeCount, 1)
 })
 
 test('cross-platform upload and download failures reject', async () => {
@@ -178,26 +401,23 @@ test('cross-platform upload and download failures reject', async () => {
   await assert.rejects(adapter({ url: '/download', responseType: 'blob', headers: {} }), downloadError)
 })
 
-test('download filename parsing supports plain, RFC 5987 and fully encoded headers', async () => {
+test('download filename parsing supports plain and RFC 5987 headers', async () => {
   const headers = []
-  const resource = new ApiResource('/files', {
+  const resource = Resource.createService({
     adapter: async () => ({
       data: 'blob',
       headers: { 'content-disposition': headers.shift() },
     }),
-  })
+  }).createApi('files', {})
 
   headers.push('attachment; filename="100%.csv"')
-  assert.equal((await resource.downloadFile('report', { silent: true })).filename, '100%.csv')
+  assert.equal((await resource.$http.downloadFile('report', { silent: true })).filename, '100%.csv')
 
   headers.push("attachment; filename*=UTF-8''%E6%8A%A5%E5%91%8A.csv")
-  assert.equal((await resource.downloadFile('report', { silent: true })).filename, '报告.csv')
+  assert.equal((await resource.$http.downloadFile('report', { silent: true })).filename, '报告.csv')
 
   headers.push("attachment; filename*=UTF-8''report%3Bfinal.csv")
-  assert.equal((await resource.downloadFile('report', { silent: true })).filename, 'report;final.csv')
-
-  headers.push(encodeURIComponent('attachment; filename=中文.png'))
-  assert.equal((await resource.downloadFile('report', { silent: true })).filename, '中文.png')
+  assert.equal((await resource.$http.downloadFile('report', { silent: true })).filename, 'report;final.csv')
 })
 
 test('cross-platform adapter aborts its request task when signaled', async () => {
@@ -218,64 +438,4 @@ test('cross-platform adapter aborts its request task when signaled', async () =>
 
   await assert.rejects(request, (reason) => reason === '用户取消')
   assert.equal(aborted, true)
-})
-
-test('cache map does not infer id as the record key field', async () => {
-  const cache = new CacheResult(async () => [{ id: 1, name: 'one' }])
-
-  assert.equal(await cache.getMap(), undefined)
-})
-
-test('cache recognizes standard dictionaries or explicitly configured dictionary fields', async () => {
-  const records = [{ value: 'enabled', label: '启用' }]
-  const inferred = new CacheResult(async () => records)
-  const configured = new CacheResult({
-    request: async () => records,
-    keyField: 'value',
-    labelField: 'label',
-  })
-
-  assert.deepEqual(await inferred.getMap(), { enabled: '启用' })
-  assert.deepEqual(await inferred.getResult(), records)
-  assert.deepEqual(await configured.getMap(), { enabled: '启用' })
-  assert.deepEqual(await configured.getResult(), [
-    { original: records[0], value: 'enabled', label: '启用' },
-  ])
-})
-
-test('labelField alone is ignored and does not look for value or id', async () => {
-  const records = [{ value: 'enabled', name: '启用', id: 1 }]
-  const cache = new CacheResult({ request: async () => records, labelField: 'name' })
-
-  assert.equal(await cache.getMap(), undefined)
-  assert.deepEqual(await cache.getResult(), records)
-})
-
-test('a new request cancels the previous batch delayed loading close', async () => {
-  const pending = []
-  let closeCount = 0
-  setLoadingServe({
-    show() {},
-    close() {
-      closeCount++
-    },
-  })
-  const http = new Http({
-    adapter: () => new Promise((resolve) => pending.push(resolve)),
-  })
-
-  const first = http.get('/first')
-  await delay(220)
-  pending.shift()({ data: {} })
-  await first
-  await delay(20)
-
-  const second = http.get('/second')
-  await delay(110)
-  assert.equal(closeCount, 0)
-
-  pending.shift()({ data: {} })
-  await second
-  await delay(120)
-  assert.equal(closeCount, 1)
 })

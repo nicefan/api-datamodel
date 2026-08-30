@@ -1,78 +1,67 @@
-import merge from 'lodash/merge'
-import Resource from './Resource'
+type HttpConstructor<H extends Obj> = {
+  new (optionsOrModulePath?: string | HttpOptions, instanceOptions?: HttpOptions): H
+  defaultOptions: Partial<HttpOptions>
+}
+type ApiMethods<T, H> = T & ThisType<T & { readonly $http: H }>
+type ApiInstance<T, H> = T & { readonly $http: H }
 
-export const defaultOptions: Partial<DefOptions> = {
-  // defRequestConfig: {
-  //   timeout: 50000
-  // },
-  // transformResponse(resultData) {
-  //   const { code, message, data } = resultData
-  //   return {
-  //     code,
-  //     message: message === 'SUCCESS' ? '' : message,
-  //     data,
-  //     success: code === 0 || code === 200
-  //   }
-  // }
+interface Service<H extends Obj> {
+  readonly http: H
+  readonly createApi: {
+    <T extends Obj>(methods: ApiMethods<T, H>): ApiInstance<T, H>
+    <T extends Obj>(modulePath: string, methods?: ApiMethods<T, H>): ApiInstance<T, H>
+  }
+  with(overrides: Partial<HttpOptions>): Service<H>
 }
 
-/** loading服务 */
-interface LoadingServe {
-  show(): void
-  /** 显示消息 */
-  message?:(msg?: MessageData) => void
-  /** 结束loading,并处理状态消息 */
-  close(data?: MessageData, msgList?: MessageData[]): void
-}
-let _loadingServe: LoadingServe
-/** loading服务配置 */
-export function setLoadingServe(loadingServe: LoadingServe) {
-  _loadingServe = loadingServe
-}
-export function getLoadingServe() {
-  if (!_loadingServe) throw new Error('请先执行平台初始化！')
-  return _loadingServe
+function mixin<T extends Obj, H extends Obj>(target: ApiInstance<T, H>, methods: T) {
+  for (const key of Object.keys(methods)) {
+    const value = methods[key]
+    Reflect.set(target, key, typeof value === 'function' ? value.bind(target) : value)
+  }
 }
 
-/** 初始化请求服务配置 */
-type InitConfig = {
-  /** 请求适配器，包含有request方法的对象，如：axios */
-  adapter: Adapter
-  /** 是否为跨平台框架,如：Taro,Uni */
-  // isCorssFrame?:boolean,
-  /** 不同环境的服务器地址或代理前缀 */
-  /** loading 组件服务 */
-  loadingServe?: LoadingServe
-} & DefOptions
+function buildService<H extends Obj>(BaseHttp: HttpConstructor<H>, options: HttpOptions): Service<H> {
+  const currentOptions = { ...options }
 
-/**
- * 设置全局配置
- * @param config -{ adapter, defRequestConfig, loadingServe }
- * @param config.adapter 请求模块 如：axios
- */
-export function setGlobalConfig({ loadingServe, ...options }: InitConfig) {
-  if (loadingServe) {
-    setLoadingServe(loadingServe)
+  // 每个 Service 都直接从最初调用 createService 的 Http 类型派生。
+  class ConfiguredHttp extends BaseHttp {
+    static defaultOptions = currentOptions
   }
 
-  merge(defaultOptions, options)
+  const HttpType = ConfiguredHttp as HttpConstructor<H>
+  const http = new HttpType()
+
+  const createApi = <T extends Obj>(
+    modulePathOrMethods: string | ApiMethods<T, H>,
+    methods?: ApiMethods<T, H>
+  ) => {
+    const modulePath = typeof modulePathOrMethods === 'string' ? modulePathOrMethods : ''
+    const apiMethods = (typeof modulePathOrMethods === 'string' ? methods : modulePathOrMethods) || ({} as T)
+    const $http = new HttpType(modulePath)
+
+    // 业务对象不继承底层请求方法，原型层只负责提供 $http。
+    const apiPrototype = Object.create(Object.prototype)
+    Object.defineProperty(apiPrototype, '$http', {
+      value: $http,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    })
+
+    const api = Object.create(apiPrototype)
+    mixin(api, apiMethods)
+    return api as ApiInstance<T, H>
+  }
+
+  return {
+    http,
+    createApi,
+    with(overrides) {
+      return buildService(BaseHttp, { ...currentOptions, ...overrides })
+    },
+  }
 }
 
-export function defineConfig(options: DefOptions) {
-  return options
-}
-
-/** 配置全局请求参数，并返回一个服务工厂方法 */
-export function serviceInit(config) {
-  setGlobalConfig(config)
-
-  return Resource.factory()
-}
-
-/** 创建一个请求服务 */
-// export function createServer(config: DefOptions) {
-//   class Server extends Resource{
-//     protected static options = config
-//   }
-//   return Server
-// }
+export { buildService }
+export type { ApiInstance, ApiMethods, HttpConstructor, Service }

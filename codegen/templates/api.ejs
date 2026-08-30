@@ -1,0 +1,26 @@
+<%
+const { utils, route, config, modelTypes } = it;
+const { pascalCase } = utils;
+const context = config.codegen.normalizeModule({
+  moduleRoute: route,
+  combinedModules: it.routes.combined,
+  modelTypes,
+  pascalCase,
+});
+const { dataContracts, moduleName, resourceName, routes } = context;
+%>
+
+<% if (dataContracts.length) { %>
+import type { <%~ dataContracts.join(", ") %> } from "./<%~ config.fileNames.dataContracts %>"
+<% } %>
+
+import createApi from "./resource";
+/**
+* <%~ routes[0].raw.tags.join(", ") %>
+
+**/
+export const <%= moduleName %>Api = createApi('<%= resourceName %>', {
+    <% routes.forEach((route) => { %>
+        <%~ includeFile('./procedure-call.ejs', { ...it, route }) %>
+    <% }) %>
+})
