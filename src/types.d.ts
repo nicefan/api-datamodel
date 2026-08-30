@@ -1,15 +1,18 @@
 /// <reference types="../types" />
 
-interface Adapter {
+interface RequestAdapter {
   (config: RequestConfig): Promise<any>
   [key: string]: any
 }
 type DefaultRequestConfig = Partial<
-  Pick<RequestConfig, 'headers' | 'timeout' | 'withCredentials' | 'backendLoad'>
+  Pick<
+    RequestConfig,
+    'headers' | 'timeout' | 'withCredentials' | 'silent' | 'messageMode' | 'signal'
+  >
 >
-interface DefOptions {
+interface HttpOptions {
   /** 请求适配器，包含有request方法的对象，如：axios */
-  adapter: Adapter
+  adapter: RequestAdapter
   /** 不同环境的服务器地址或代理前缀 */
   serverUrl?: string
   /** 业务请求前缀 */

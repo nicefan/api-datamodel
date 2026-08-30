@@ -6,9 +6,9 @@ function normalizedPath(value) {
   return value.startsWith('/') ? value : `/${value}`
 }
 
-function createPathNormalizer(resource) {
-  const rootPath = trimSlashes(resource.rootPath ?? '')
-  if (resource.rootPathSource !== 'document' || !rootPath) return normalizedPath
+function createPathNormalizer(service) {
+  const rootPath = trimSlashes(service.rootPath ?? '')
+  if (service.rootPathSource !== 'document' || !rootPath) return normalizedPath
   const segments = rootPath.split('/').filter(Boolean)
   // 网关可能只把 rootPath 的后半段写进文档，依次生成后缀以兼容完整前缀和尾部前缀。
   const prefixes = segments.map((_, index) => `/${segments.slice(index).join('/')}`)
@@ -23,8 +23,8 @@ function routeParts(moduleRoute, normalizePath) {
   return normalizePath(moduleRoute.routes[0].request.path).split('/').filter(Boolean)
 }
 
-export function normalizeModule({ moduleRoute, combinedModules, modelTypes, responseSchemaPrefix, resource, duplicateMethodStrategy, pascalCase }) {
-  const normalizePath = createPathNormalizer(resource)
+export function normalizeModule({ moduleRoute, combinedModules, modelTypes, responseSchemaPrefix, service, duplicateMethodStrategy, pascalCase }) {
+  const normalizePath = createPathNormalizer(service)
   const parts = routeParts(moduleRoute, normalizePath)
   const resourceName = parts[0] ?? ''
   // 一级资源路径相同且存在嵌套路由时，用第二段路径区分模块，避免生成文件互相覆盖。

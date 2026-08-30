@@ -72,6 +72,22 @@ test('API Codegen reads named business-project configuration', async () => {
           },
         },
       },
+      '/users/update': {
+        patch: {
+          operationId: 'updateUser',
+          tags: ['Users'],
+          responses: {
+            200: {
+              description: 'ok',
+              content: {
+                'application/json': {
+                  schema: { type: 'boolean' },
+                },
+              },
+            },
+          },
+        },
+      },
     },
     components: {
       schemas: {
@@ -96,7 +112,7 @@ test('API Codegen reads named business-project configuration', async () => {
       outputDir: 'generated/clients',
       generatorOptions: { cleanOutput: true },
       responseSchema: { namePrefix: 'ApiResponse', dataField: 'result' },
-      resource: { rootPath: 'admin' },
+      service: { importPath: '@/api/service', importName: 'service', rootPath: 'admin' },
       apis: {
         system: {
           url,
@@ -117,9 +133,11 @@ test('API Codegen reads named business-project configuration', async () => {
     assert.match(generated, /return this\.\$http\.get/)
     assert.match(generated, /getUser\(/)
     assert.match(generated, /return this\.\$http\.get<string>/)
+    assert.match(generated, /return this\.\$http\.request<boolean>\(`\/update`, \{ \.\.\.config, method: "PATCH" \}\)/)
     assert.doesNotMatch(generated, /ApiResponseUser/)
     const resource = await readFile(path.join(tempDir, 'generated/clients/system/resource.ts'), 'utf8')
-    assert.match(resource, /ApiResource\.factory\(\{ rootPath: "admin" \}\)/)
+    assert.match(resource, /import \{ service \} from "@\/api\/service"/)
+    assert.match(resource, /export default service\.with\(\{ rootPath: "admin" \}\)\.createApi/)
   } finally {
     await new Promise((resolve) => server.close(resolve))
     await rm(tempDir, { recursive: true, force: true })
@@ -176,7 +194,9 @@ test('API Codegen strips a full or matching suffix resource prefix before naming
     const url = `http://127.0.0.1:${server.address().port}/openapi.json`
     const config = {
       outputDir: 'generated/clients',
-      resource: {
+      service: {
+        importPath: '@/api/service',
+        importName: 'service',
         rootPath: 'api/v1',
         rootPathSource: 'document',
       },
@@ -209,7 +229,7 @@ test('API Codegen strips a full or matching suffix resource prefix before naming
   }
 })
 
-test('API Codegen creates a local resource module when importPath is configured', async () => {
+test('API Codegen creates a local service module when importPath is configured', async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'api-datamodel-codegen-resource-'))
   const spec = {
     openapi: '3.0.0',
@@ -237,7 +257,7 @@ test('API Codegen creates a local resource module when importPath is configured'
       apis: {
         system: {
           url,
-          resource: { importPath: '@/api/customResource', rootPath: 'admin' },
+          service: { importPath: '@/api/services', importName: 'systemService', rootPath: 'admin' },
         },
       },
     }
@@ -248,11 +268,11 @@ test('API Codegen creates a local resource module when importPath is configured'
 
     const generated = await readFile(path.join(tempDir, 'generated/clients/system/Users.ts'), 'utf8')
     assert.match(generated, /import createApi from "\.\/resource"/)
-    assert.doesNotMatch(generated, /customResource/)
+    assert.doesNotMatch(generated, /systemService/)
 
     const resource = await readFile(path.join(tempDir, 'generated/clients/system/resource.ts'), 'utf8')
-    assert.match(resource, /import Resource from "@\/api\/customResource"/)
-    assert.match(resource, /Resource\.factory\(\{ rootPath: "admin" \}\)/)
+    assert.match(resource, /import \{ systemService \} from "@\/api\/services"/)
+    assert.match(resource, /export default systemService\.with\(\{ rootPath: "admin" \}\)\.createApi/)
   } finally {
     await new Promise((resolve) => server.close(resolve))
     await rm(tempDir, { recursive: true, force: true })
@@ -276,12 +296,15 @@ test('API Codegen loads a TypeScript configuration directly', async () => {
     const url = `http://127.0.0.1:${server.address().port}/openapi.json`
     await writeFile(
       path.join(tempDir, 'api-datamodel.config.ts'),
-      `type ApiName = 'system'\nconst name: ApiName = 'system'\nexport default { apis: { [name]: { url: ${JSON.stringify(url)} } } }`
+      `type ApiName = 'system'\nconst name: ApiName = 'system'\nexport default { service: { importPath: '@/api/services', importName: 'service' }, apis: { [name]: { url: ${JSON.stringify(url)} } } }`
     )
 
     const result = await runGenerator(['system'], tempDir)
     assert.equal(result.code, 0, result.stderr || result.stdout)
     assert.equal(result.stdout.split(/\r?\n/)[0], `配置文件：${path.join(tempDir, 'api-datamodel.config.ts')}`)
+    const resource = await readFile(path.join(tempDir, 'src/api/system/resource.ts'), 'utf8')
+    assert.match(resource, /export default service\.createApi/)
+    assert.doesNotMatch(resource, /service\.with/)
   } finally {
     await new Promise((resolve) => server.close(resolve))
     await rm(tempDir, { recursive: true, force: true })
@@ -353,12 +376,16 @@ test('API Codegen accepts local YAML documents and rejects unknown CLI options',
   try {
     const documentPath = path.join(tempDir, 'openapi.yaml')
     await writeFile(
+      path.join(tempDir, 'api-datamodel.config.mjs'),
+      `export default { service: { importPath: '@/api/services', importName: 'service' } }`
+    )
+    await writeFile(
       documentPath,
       'openapi: 3.0.0\ninfo:\n  title: Local YAML\n  version: 1.0.0\npaths: {}\n'
     )
     const result = await runGenerator([documentPath, 'local'], tempDir)
     assert.equal(result.code, 0, result.stderr || result.stdout)
-    assert.match(await readFile(path.join(tempDir, 'src/api/local/resource.ts'), 'utf8'), /ApiResource/)
+    assert.match(await readFile(path.join(tempDir, 'src/api/local/resource.ts'), 'utf8'), /service\.createApi/)
 
     const invalidOption = await runGenerator(['--unknown'], tempDir)
     assert.equal(invalidOption.code, 1)
@@ -384,6 +411,7 @@ test('API Codegen sends configured headers when loading a remote document', asyn
   try {
     const config = {
       documentRequest: { timeout: 1000, headers: { 'x-api-key': 'secret' } },
+      service: { importPath: '@/api/services', importName: 'service' },
       apis: { system: { url: `http://127.0.0.1:${server.address().port}/openapi.json` } },
     }
     await writeFile(path.join(tempDir, 'api-datamodel.config.mjs'), `export default ${JSON.stringify(config)}`)
@@ -426,7 +454,7 @@ test('API Codegen preserves existing output when duplicate method strategy stops
     await writeFile(path.join(tempDir, 'api-datamodel.config.mjs'), `export default ${JSON.stringify(config)}`)
     const result = await runGenerator(['system'], tempDir)
     assert.equal(result.code, 1)
-    assert.match(result.stderr, /存在重名方法/)
+    assert.match(result.stderr, /接口命名冲突/)
     assert.equal(await readFile(path.join(outputDir, 'keep.txt'), 'utf8'), 'old output')
   } finally {
     await new Promise((resolve) => server.close(resolve))

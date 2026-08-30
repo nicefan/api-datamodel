@@ -5,7 +5,7 @@
  * @LastEditors: 范阳峰
  * @LastEditTime: 2021-08-20 09:55:46
  */
-type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
+type HttpMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'POST' | 'PUT'
 
 type HttpResponseType = 'blob' | 'json' | 'text'
 
@@ -45,14 +45,12 @@ interface RequestConfig {
   onUploadProgress?: (progressEvent: any) => void
   onDownloadProgress?: (progressEvent: any) => void
   // maxContentLength?: number;
-  /** 后台加载，不显示loading等待框 */
-  backendLoad?: boolean
-  /** 静默请求，不显示loading及消息 */
+  /** 静默请求：不参与 Loading 和消息聚合，但参与错误拦截和全局请求登记 */
   silent?: boolean
   /** 错误提示方式 */
   messageMode?: ErrorMessageMode
-  /** 是否忽略后端返回数据拦截消息处理，responseType指定为非`json`时, 将自动忽略，直接返回`response`对象 */
-  IgnoreInterceptor?: boolean
+  /** 是否直接返回适配器原始响应；未配置时，非 JSON 响应默认返回原始响应 */
+  rawResponse?: boolean
 }
 
 /** uni-app 上传文件的请求参数 */

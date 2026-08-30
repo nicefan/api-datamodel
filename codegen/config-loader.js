@@ -53,14 +53,18 @@ function validateApiOptions(options, name, requireUrl = false) {
   assertOptionalString(options.outputDir, `${name}.outputDir`)
   assertOptionalString(options.outputFolder, `${name}.outputFolder`)
   assertOptionalString(options.label, `${name}.label`)
-  if (options.resource !== undefined) {
-    assertObject(options.resource, `${name}.resource`)
-    assertOptionalString(options.resource.importPath, `${name}.resource.importPath`)
-    if (options.resource.rootPath !== undefined && typeof options.resource.rootPath !== 'string') {
-      throw new Error(`${name}.resource.rootPath 必须是字符串`)
+  if (options.service !== undefined) {
+    assertObject(options.service, `${name}.service`)
+    assertOptionalString(options.service.importPath, `${name}.service.importPath`)
+    assertOptionalString(options.service.importName, `${name}.service.importName`)
+    if (options.service.importName && !/^[A-Za-z_$][\w$]*$/.test(options.service.importName)) {
+      throw new Error(`${name}.service.importName 必须是有效的导出名称`)
     }
-    if (options.resource.rootPathSource !== undefined && !['gateway', 'document'].includes(options.resource.rootPathSource)) {
-      throw new Error(`${name}.resource.rootPathSource 只能是 gateway 或 document`)
+    if (options.service.rootPath !== undefined && typeof options.service.rootPath !== 'string') {
+      throw new Error(`${name}.service.rootPath 必须是字符串`)
+    }
+    if (options.service.rootPathSource !== undefined && !['gateway', 'document'].includes(options.service.rootPathSource)) {
+      throw new Error(`${name}.service.rootPathSource 只能是 gateway 或 document`)
     }
   }
   if (options.responseSchema !== undefined) {
@@ -135,7 +139,7 @@ export function resolveNamedApi(config, name) {
     ...api,
     generatorOptions: { ...(config.generatorOptions ?? {}), ...(api.generatorOptions ?? {}) },
     responseSchema: { ...(config.responseSchema ?? {}), ...(api.responseSchema ?? {}) },
-    resource: { ...(config.resource ?? {}), ...(api.resource ?? {}) },
+    service: { ...(config.service ?? {}), ...(api.service ?? {}) },
     documentRequest: {
       ...(config.documentRequest ?? {}),
       ...(api.documentRequest ?? {}),

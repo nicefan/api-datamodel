@@ -63,7 +63,7 @@ function normalizeHeaders(headers: Headers) {
 }
 
 /** 将标准 Fetch API 包装为 api-datamodel 请求适配器。 */
-export const fetchAdapter: Adapter = async (config) => {
+export const fetchAdapter: RequestAdapter = async (config) => {
   const {
     url = '',
     baseURL = '',

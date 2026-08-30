@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { generateApi } from 'swagger-typescript-api'
 import { loadSwaggerDocument } from './document-loader.js'
 import { normalizeModule } from './normalize-module.js'
+import { createApiFactoryContent } from './api-factory-template.js'
 
 const builtInTemplateDir = path.resolve(fileURLToPath(import.meta.url), '../templates')
 
@@ -75,16 +76,11 @@ function reportDiagnostics(diagnostics) {
   }
 }
 
-function createResourceFile(outputFiles, resource) {
-  const rootPathOption = resource.rootPath ? `{ rootPath: ${JSON.stringify(resource.rootPath)} }` : ''
-  const resourceImport = resource.importPath
-    ? `import Resource from ${JSON.stringify(resource.importPath)}`
-    : "import { ApiResource } from 'api-datamodel'"
-  const resourceClassName = resource.importPath ? 'Resource' : 'ApiResource'
+function createApiFactoryFile(outputFiles, service) {
   outputFiles.createFile({
     path: outputFiles.configuration.config.output,
     fileName: 'resource.ts',
-    content: [resourceImport, '', `export default ${resourceClassName}.factory(${rootPathOption})`, ''].join('\n'),
+    content: createApiFactoryContent(service),
   })
 }
 
@@ -108,7 +104,7 @@ export async function generateCode({
   url,
   outputFolder,
   outputDir,
-  resource = {},
+  service = {},
   generatorOptions = {},
   responseSchema = {},
   documentRequest = {},
@@ -121,7 +117,7 @@ export async function generateCode({
   const resolvedOutputDir = path.resolve(resolvedOutputRoot, outputFolder)
   validateOutputPath(cwd, resolvedOutputRoot, resolvedOutputDir)
   const resolvedTemplateDir = await resolveTemplateDir(cwd, generatorOptions.templates)
-  const resolvedResource = { rootPath: '', rootPathSource: 'gateway', ...resource }
+  const resolvedService = { rootPath: '', rootPathSource: 'gateway', ...service }
   const resolvedResponseSchema = { namePrefix: 'AjaxResult', dataField: 'data', ...responseSchema }
   const spec = await loadSwaggerDocument({ cwd, source: url, request: documentRequest })
   await mkdir(path.dirname(resolvedOutputDir), { recursive: true })
@@ -137,13 +133,13 @@ export async function generateCode({
       cleanOutput: true,
       ...generatorOptions,
       responseSchema: resolvedResponseSchema,
-      resource: resolvedResource,
+      service: resolvedService,
       codegen: {
         normalizeModule(options) {
           const context = normalizeModule({
             ...options,
             duplicateMethodStrategy,
-            resource: resolvedResource,
+            service: resolvedService,
             responseSchemaPrefix: resolvedResponseSchema.namePrefix,
           })
           diagnostics.push(...context.diagnostics)
@@ -157,7 +153,7 @@ export async function generateCode({
       output: tempDir,
       templates: resolvedTemplateDir,
     })
-    createResourceFile(outputFiles, resolvedResource)
+    createApiFactoryFile(outputFiles, resolvedService)
     createIndexFile(outputFiles)
     reportDiagnostics(diagnostics)
     await replaceOutputDirectory(tempDir, resolvedOutputDir)

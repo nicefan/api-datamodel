@@ -110,7 +110,16 @@ let configStr = '';
       configStr = (bodyTmpl && queryTmpl) ? `{ params:${queryTmpl}, ...config }` : 'config'
       _type &&= `<${_type}>`
       const _method = _.lowerCase(method)
-      if (_method !== 'get' && queryTmpl ) {
+      const shortcutMethods = ['get', 'post', 'put', 'delete']
+      if (!shortcutMethods.includes(_method)) {
+        const requestOptions = [
+          bodyTmpl && `data: ${bodyTmpl}`,
+          queryTmpl && `params: ${queryTmpl}`,
+          '...config',
+          `method: '${_.upperCase(method)}'`,
+        ].filter(Boolean).join(', ')
+        output = `return this.$http.request${_type}(\`${shortPath}\`, { ${requestOptions} })`
+      } else if (_method !== 'get' && queryTmpl ) {
         output = `return this.$http.${_method}${_type}(\`${shortPath}\`, ${bodyTmpl}, { params: ${queryTmpl}, ...config})`
       } else {
         output = `return this.$http.${_method}${_type}(\`${shortPath}\`, ${queryTmpl || bodyTmpl}, config)`

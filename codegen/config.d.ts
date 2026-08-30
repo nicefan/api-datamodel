@@ -5,11 +5,13 @@ export interface CodegenApiConfig {
   outputDir?: string
   /** src/api 下的输出文件夹；省略时使用当前配置名称。 */
   outputFolder?: string
-  /** Resource 类及其请求前缀配置。 */
-  resource?: {
-    /** Resource 类 TS 文件路径；使用其默认导出生成同目录 resource.ts。省略时使用内置 ApiResource。 */
+  /** Service 导入路径及其派生请求前缀配置。 */
+  service?: {
+    /** 已配置 Service 所在的 TS 模块路径；最终合并配置中必填。 */
     importPath?: string
-    /** 传给 ApiResource.factory 的 rootPath。 */
+    /** 模块导出的 Service 名称；最终合并配置中必填。 */
+    importName?: string
+    /** 存在时通过 service.with({ rootPath }) 创建派生 Service。 */
     rootPath?: string
     /** rootPath 的来源，指定网关或是接口固定前缀；默认是网关前缀。 */
     rootPathSource?: 'gateway' | 'document'

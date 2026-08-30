@@ -1,9 +1,10 @@
 import Http from './Http'
 
+/** 在标准 Http 上补充可复用的通用请求能力。 */
 class Resource extends Http {
   /** formData表单格式上传文件 */
-  upload(apiName: string, data: FormData | UniFormData, config?: RequestConfig) {
-    return this.request(apiName, {
+  upload(requestPath: string, data: FormData | UniFormData, config?: RequestConfig) {
+    return this.request(requestPath, {
       headers: { 'content-type': 'multipart/form-data' },
       data,
       method: 'POST',
@@ -14,8 +15,8 @@ class Resource extends Http {
   /** 二进制流文件下载。
    * * 默认取请求头中的filename为文件名，可配置config.filename指定下载文件名(跨平台不支持，需自行在拦截器中配置)
    **/
-  downloadFile(apiName: string, config?: RequestConfig) {
-    return this.request(apiName, {
+  downloadFile(requestPath: string, config?: RequestConfig) {
+    return this.request<any>(requestPath, {
       responseType: 'blob',
       method: 'GET',
       ...config,
@@ -32,11 +33,7 @@ class Resource extends Http {
           // 解码失败，保持原始值
         }
       }
-      // uniRequest中data直接返回ObjectURL
-      return {
-        filename,
-        data,
-      }
+      return { filename, data }
     })
   }
 }

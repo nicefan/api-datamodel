@@ -2,12 +2,12 @@
 
 面向业务资源组织前端接口的 TypeScript 请求模型。
 
-`api-datamodel` 不绑定具体请求库，而是在 Axios、UniApp 等请求适配器之上，通过 Resource 统一业务路径、返回数据、加载状态、消息提示和请求取消。常规项目使用一个默认 Resource；涉及多个后台服务时，再按服务域分别配置地址、鉴权和数据规则。项目还提供 API Codegen，可根据 Swagger/OpenAPI 文档生成可调用、可维护、具备类型提示的业务模块 API 实例。
+`api-datamodel` 不绑定具体请求库，而是在 Axios、UniApp 等请求适配器之上，通过 Http 和 Service 统一业务路径、返回数据、加载状态、消息提示和请求取消。Resource 在 Http 上补充上传、下载等可复用请求能力。项目还提供 API Codegen，可根据 Swagger/OpenAPI 文档生成可调用、可维护、具备类型提示的业务模块 API 实例。
 
 ## 核心价值
 
 - **按业务建模，而不是散落 URL**：用 `userApi`、`orderApi` 等稳定对象承载一个业务资源的全部操作。
-- **默认资源即可覆盖常规项目**：配置一次默认 Resource，所有业务模块都从它创建 API 实例。
+- **默认 Service 即可覆盖常规项目**：配置一个 Service，所有业务模块都从它创建 API 实例。
 - **复杂项目按服务域隔离**：不同后台服务可分别配置地址、鉴权、请求头和返回数据规则，再创建各自的业务模块 API。
 - **API Codegen**：根据 Swagger/OpenAPI 文档生成请求代码、数据类型和统一导出文件，减少重复手写和前后端偏差。
 - **请求实现可替换**：核心只依赖请求适配器，可接入 Axios、UniApp、Taro 或自定义实现。
@@ -16,43 +16,43 @@
 
 ## 业务模式
 
-`api-datamodel` 的核心是 `Resource`。业务代码不直接管理请求地址，而是先配置资源，再由资源创建业务模块 API 实例。
+`api-datamodel` 的公开业务入口是 `createService()`，它等价于 `Resource.createService()`。Http 提供底层静态实现，Resource 在此基础上补充上传、下载等通用能力。
 
-> 资源配置定义请求规则，服务域 Resource 承载这些规则，再由 Resource 创建业务模块 API 实例对象。默认资源优先，多个服务域按需创建。
+> HttpOptions 定义请求规则，Resource 提供通用请求能力，Service 负责按业务路径创建 API 实例。
 
-大多数项目只需要一个默认资源：
-
-```text
-默认资源配置 → 默认 Resource（createApi）→ userApi / orderApi / roleApi
-```
-
-当复杂项目同时连接多个后台服务时，再按照服务域分别创建 Resource：
+大多数项目只需要一个默认 Service：
 
 ```text
-系统服务配置   → 系统 Resource（createSystemApi）     → userApi / roleApi
-工作流服务配置 → 工作流 Resource（createWorkflowApi） → taskApi / processApi
-文件服务配置   → 文件 Resource（createFileApi）       → fileApi
+HttpOptions → Service（createApi）→ userApi / orderApi / roleApi
 ```
 
-每个服务域 Resource 可以拥有独立的 `serverUrl`、`rootPath`、鉴权逻辑、默认请求参数和返回数据转换；它创建的业务模块 API 实例自动继承这些规则。
+当复杂项目同时连接多个后台服务时，再按照服务域分别创建 Service：
+
+```text
+系统 HttpOptions   → systemService   → userApi / roleApi
+工作流 HttpOptions → workflowService → taskApi / processApi
+文件 HttpOptions   → fileService     → fileApi
+```
+
+每个 Service 可以拥有独立的 `serverUrl`、`rootPath`、鉴权逻辑、默认请求参数和返回数据转换；它创建的业务模块 API 实例自动使用这些规则。
 
 对应的代码层次如下：
 
 | 层次 | 作用 | 示例 |
 | --- | --- | --- |
 | 请求适配器 | 真正发送网络请求 | `axios`、`buildAdapter(uni)` |
-| 默认资源配置 | 常规项目共享的地址、鉴权和返回规则 | `defaultResourceConfig` |
-| 服务域 Resource | 固定某个后台服务的请求边界 | `createApi`、`createSystemApi` |
+| HttpOptions | 描述地址、鉴权和返回规则 | `defaultHttpOptions` |
+| Service | 固定后台服务边界并创建 API | `service.createApi` |
 | 业务模块 API 实例 | 聚合同一业务模块的全部操作 | `userApi.list()`、`userApi.save()` |
 
 ```mermaid
 flowchart LR
-  DefaultConfig["默认资源配置"] --> DefaultResource["默认 Resource · createApi"]
-  SystemConfig["系统服务配置"] --> SystemResource["系统 Resource · createSystemApi"]
-  WorkflowConfig["工作流服务配置"] --> WorkflowResource["工作流 Resource · createWorkflowApi"]
-  DefaultResource --> CommonApis["常规业务模块 API"]
-  SystemResource --> SystemApis["userApi / roleApi"]
-  WorkflowResource --> WorkflowApis["taskApi / processApi"]
+  DefaultConfig["默认 HttpOptions"] --> DefaultService["默认 Service · createApi"]
+  SystemConfig["系统 HttpOptions"] --> SystemService["systemService"]
+  WorkflowConfig["工作流 HttpOptions"] --> WorkflowService["workflowService"]
+  DefaultService --> CommonApis["常规业务模块 API"]
+  SystemService --> SystemApis["userApi / roleApi"]
+  WorkflowService --> WorkflowApis["taskApi / processApi"]
   CommonApis --> DefaultBackend["默认后台服务"]
   SystemApis --> SystemBackend["系统后台服务"]
   WorkflowApis --> WorkflowBackend["工作流后台服务"]
@@ -62,7 +62,7 @@ flowchart LR
 
 ```text
 src/api/
-├─ dataModel.ts          # 默认资源配置与服务域 Resource 工厂
+├─ dataModel.ts          # HttpOptions 与 Service
 ├─ sys/                  # API Codegen 生成的系统管理接口
 │  ├─ Users.ts
 │  └─ index.ts
@@ -84,21 +84,26 @@ yarn add api-datamodel
 
 ## 快速开始
 
-### 1. 创建默认资源
+### 1. 创建默认 Service
 
 创建 `src/api/dataModel.ts`：
 
 ```ts
-import { defineConfig, fetchAdapter, serviceInit, setLoadingServe } from 'api-datamodel'
+import { createService, defineConfig, fetchAdapter, setRequestHooks } from 'api-datamodel'
 
-// 非 silent 请求需要初始化 Loading 服务。
-// 可接入任意 UI 框架；暂不需要界面反馈时可使用空实现。
-setLoadingServe({
-  show() {},
-  close() {},
+setRequestHooks({
+  showLoading() {
+    // 打开全局 Loading
+  },
+  interceptError(error, { abortAll }) {
+    if (error.code === '1401') abortAll()
+  },
+  complete({ errors, successes }) {
+    // 关闭 Loading，并集中处理本批请求的消息
+  },
 })
 
-export const defaultResourceConfig = defineConfig({
+export const defaultHttpOptions = defineConfig({
   // 任何接收 RequestConfig 并返回 Promise 的函数都可作为适配器。
   adapter: fetchAdapter,
   serverUrl: '/api',
@@ -122,8 +127,9 @@ export const defaultResourceConfig = defineConfig({
   },
 })
 
-// 初始化默认资源，并获得业务模块 API 创建方法。
-export const createApi = serviceInit(defaultResourceConfig)
+export const service = createService(defaultHttpOptions)
+export default service
+export const createApi = service.createApi
 ```
 
 `transformResponse` 应返回 `{ code, message, data, success }`。其中 `success` 决定请求进入成功还是失败分支，成功时业务方法直接得到 `data`。
@@ -148,7 +154,7 @@ interface Page<T> {
   total: number
 }
 
-// userApi 是由默认 Resource 创建的“用户”业务模块 API 实例。
+// userApi 是由默认 Service 创建的“用户”业务模块 API 实例。
 export const userApi = createApi('user', {
   list(query: UserQuery, config?: RequestConfig) {
     return this.$http.get<Page<User>>('page', query, config)
@@ -173,7 +179,7 @@ export const userApi = createApi('user', {
 })
 ```
 
-通过 `create`、`factory` 或 `serviceInit` 创建的业务 API 实例都会公开一个只读的 `$http` 属性。它是同一资源的底层请求实例，继承当前资源的地址、请求配置、拦截器和消息处理能力，不需要重新配置请求服务。
+通过 `service.createApi()` 创建的业务 API 对象只包含业务扩展方法，其原型层仅公开指向独立 Resource 请求实例的只读 `$http` 属性。不同 API 不共享请求实例，但使用所属 Service 动态 Resource 类型上的同一份静态配置。
 
 `$http` 可直接调用以下底层方法：
 
@@ -181,9 +187,8 @@ export const userApi = createApi('user', {
 | --- | --- |
 | `$http.request()` | 发起自定义请求 |
 | `$http.get()`、`$http.post()`、`$http.put()`、`$http.delete()` | 发起对应 HTTP 请求 |
-| `$http.upload()`、`$http.downloadFile()` | `ApiResource` 提供的上传和下载请求 |
-| `$http.setMessage()` | 设置或替换当前请求的提示消息 |
-| `$http.abort()` | 取消该资源的全部进行中请求 |
+| `$http.upload()`、`$http.downloadFile()` | `Resource` 提供的上传和下载请求 |
+| `$http.setMessage()` | 为当前请求批次增加手动成功消息 |
 
 在资源扩展方法内部使用 `this.$http`，在业务代码中使用 `userApi.$http`。当扩展方法覆盖了 `get`、`post`、`put`、`delete`、`request`、`upload` 或 `downloadFile` 等同名方法时，必须通过 `$http` 调用底层方法：
 
@@ -198,7 +203,6 @@ export const userApi = createApi('user', {
 const user = await userApi.$http.get<User>('1001')
 
 // $http 是只读属性，不能替换为另一个请求实例。
-userApi.$http.abort('页面已离开')
 ```
 
 按照上面的配置，路径组合如下：
@@ -206,12 +210,12 @@ userApi.$http.abort('页面已离开')
 ```text
 serverUrl  /api
 rootPath   空
-resource   user
-operation  page
+modulePath user
+requestPath page
 最终地址   /api/user/page
 ```
 
-资源名以 `/` 开头时会绕过 `rootPath`。需要继承业务域前缀时，应使用 `user`，不要使用 `/user`。
+`serverUrl`、`rootPath`、模块路径和请求路径都会统一规范化后拼接。建议各业务路径段不带前后 `/`。
 
 ### 3. 在业务代码中调用
 
@@ -219,25 +223,27 @@ operation  page
 const page = await userApi.$http.get<Page<User>>('page', { page: 1 })
 const user = await userApi.$http.get<User>('1001')
 
-// 取消该资源当前所有进行中的请求，也可以使用 userApi.$http.abort()。
-userApi.$http.abort('页面已离开')
+// 单请求取消使用标准 AbortSignal。
+const controller = new AbortController()
+userApi.$http.get<User>('1002', undefined, { signal: controller.signal })
+controller.abort('页面已离开')
 ```
 
-默认模式下，项目只需维护 `defaultResourceConfig` 和 `createApi`。所有业务模块 API 实例共享同一套服务地址、鉴权、拦截器和返回数据规则。
+默认模式下，项目只需维护 `defaultHttpOptions` 和 `createApi`。所有业务模块 API 实例共享同一套服务地址、鉴权、拦截器和返回数据规则。
 
-## 多服务域资源
+## 多服务域 Service
 
-只有当项目涉及不同后台服务，或者不同服务需要独立的地址、鉴权和返回规则时，才需要创建多个服务域 Resource。
+只有当项目涉及不同后台服务，或者不同服务需要独立的地址、鉴权和返回规则时，才需要创建多个 Service。
 
 例如系统服务与工作流服务分别使用不同代理地址和鉴权头：
 
 ```ts
-import { ApiResource, defineConfig } from 'api-datamodel'
+import { createService, defineConfig } from 'api-datamodel'
 import axios from 'axios'
-import { defaultResourceConfig } from './dataModel'
+import { defaultHttpOptions } from './dataModel'
 
-const systemResourceConfig = defineConfig({
-  ...defaultResourceConfig,
+const systemHttpOptions = defineConfig({
+  ...defaultHttpOptions,
   serverUrl: '/system-api',
   requestInterceptors(config) {
     config.headers = {
@@ -248,7 +254,7 @@ const systemResourceConfig = defineConfig({
   },
 })
 
-const workflowResourceConfig = defineConfig({
+const workflowHttpOptions = defineConfig({
   adapter: axios,
   serverUrl: '/workflow-api',
   defRequestConfig: {
@@ -271,21 +277,22 @@ const workflowResourceConfig = defineConfig({
   },
 })
 
-// 每个创建方法代表一个配置独立的服务域 Resource。
-export const createSystemApi = ApiResource.factory(systemResourceConfig)
-export const createWorkflowApi = ApiResource.factory(workflowResourceConfig)
+// 每个 Service 都持有独立配置；with() 通过浅合并创建派生 Service。
+export const systemService = createService(systemHttpOptions)
+export const workflowService = createService(workflowHttpOptions)
+export const systemV2Service = systemService.with({ rootPath: 'v2' })
 ```
 
-服务域 Resource 再创建对应的业务模块 API 实例：
+各 Service 创建对应的业务模块 API 实例：
 
 ```ts
-export const userApi = createSystemApi('user', {
+export const userApi = systemService.createApi('user', {
   list(query: UserQuery) {
     return this.$http.get<User[]>('list', query)
   },
 })
 
-export const taskApi = createWorkflowApi('task', {
+export const taskApi = workflowService.createApi('task', {
   pending() {
     return this.$http.get<Task[]>('pending')
   },
@@ -293,8 +300,8 @@ export const taskApi = createWorkflowApi('task', {
 ```
 
 ```text
-createSystemApi   + user   + list     → /system-api/user/list
-createWorkflowApi + task   + pending  → /workflow-api/task/pending
+systemService   + user + list    → /system-api/user/list
+workflowService + task + pending → /workflow-api/task/pending
 ```
 
 业务页面最终只依赖 `userApi`、`taskApi` 等模块实例，不需要关心它们来自哪个后台地址或使用哪套鉴权规则。
@@ -316,12 +323,12 @@ API Codegen 根据 Swagger/OpenAPI 文档生成请求代码和数据类型，并
 /user/{id}       → createApi('user', { getUser(id) { ... } })
 ```
 
-生成的资源路径为 `resource.rootPath + 第一个路径段`，相对接口路径为去掉第一个路径段后的部分。因此：
+生成的资源路径为 `service.rootPath + 第一个路径段`，相对接口路径为去掉第一个路径段后的部分。因此：
 
 - `paths` 中只写服务内的接口路径，不要把完整域名或服务地址写进路径。
 - 同一业务模块的接口应使用相同的第一个路径段，例如统一使用 `/user/...`。
-- `resource.rootPath` 默认按 `gateway` 处理，由 Resource Factory 统一补充网关前缀。
-- 当 `resource.rootPathSource` 为 `document` 时，生成器会从 Swagger 路径开头去掉完整的 `rootPath`，或能匹配的最长尾部路径。例如 `rootPath: 'api/v1'` 可处理以 `/api/v1` 或 `/v1` 开头的文档路径。
+- `service.rootPath` 默认按 `gateway` 处理，由派生 Service 统一补充网关前缀。
+- 当 `service.rootPathSource` 为 `document` 时，生成器会从 Swagger 路径开头去掉完整的 `rootPath`，或能匹配的最长尾部路径。例如 `rootPath: 'api/v1'` 可处理以 `/api/v1` 或 `/v1` 开头的文档路径。
 - `tags[0]` 会参与接口模块分组；建议让第一个 Tag 与路径的第一个段表达同一个业务域。
 - 如果多个接口模块的路径前缀发生冲突，模板会追加后续路径段生成唯一的 API 变量名，因此路径段应保持稳定、可区分。
 
@@ -340,7 +347,7 @@ public class UserController {
 }
 ```
 
-这会形成 `/user/{id}`，前端生成 `userApi`，并把 `{id}` 生成方法参数。使用网关前缀时，Swagger 不要重复写入该前缀；如果 Swagger 本身已经包含前缀，则将 `resource.rootPathSource` 设为 `document`。
+这会形成 `/user/{id}`，前端生成 `userApi`，并把 `{id}` 生成方法参数。使用网关前缀时，Swagger 不要重复写入该前缀；如果 Swagger 本身已经包含前缀，则将 `service.rootPathSource` 设为 `document`。
 
 #### 操作名与参数
 
@@ -409,14 +416,14 @@ export const userApi = createApi('user', {
 
 #### 请求和返回值
 
-- `GET`、`POST`、`PUT`、`DELETE` 会分别生成 `$http.get`、`$http.post`、`$http.put`、`$http.delete`。模板会按 HTTP 方法名直接拼接 `$http.<method>`；当前 `Http/Resource` 没有内置 `$http.patch`、`$http.head` 等方法，使用这些方法前需要扩展运行时或改用自定义模板。
+- `GET`、`POST`、`PUT`、`DELETE` 会分别生成 `$http.get`、`$http.post`、`$http.put`、`$http.delete`；`PATCH`、`HEAD`、`OPTIONS` 等没有快捷方法的请求统一生成 `$http.request`，并在配置中写入实际 HTTP 方法。
 - 成功响应中的 Schema 会成为 `$http` 方法的 TypeScript 泛型；`components.schemas` 中的对象、枚举和数组会生成到 `data-contracts.ts`。
 - 如果响应模型名称以 `responseSchema.namePrefix` 开头（默认是 `AjaxResult`），并且包含 `responseSchema.dataField` 字段，模板会将业务方法的返回类型展开为该字段的类型。建议统一使用类似 `AjaxResultUser`、`AjaxResultUserList` 的具体响应模型。
 - 请求体模型的字段全部可选时，生成的方法会把请求体默认成 `{}`；必须提交请求体的接口应在 `requestBody.required` 或字段 `required` 中准确声明。
 - 当前模板会把解析为 `void` 的成功响应统一生成 `$http.downloadFile`。因此普通删除或更新接口不要只定义无响应体的 `204`，否则可能被当成文件下载接口；普通业务接口应返回明确的 JSON Schema。
 - `multipart/form-data` 不会自动转换为 `$http.upload`，文件上传接口需要在业务层使用 `$http.upload`，或另行提供自定义模板。
 
-接口的 `summary`、`description`、请求方法和路径会写入生成方法的 JSDoc；响应 Schema 主要负责类型生成，实际的鉴权、服务地址和统一返回值处理仍由 Resource 配置负责。
+接口的 `summary`、`description`、请求方法和路径会写入生成方法的 JSDoc；响应 Schema 主要负责类型生成，实际的鉴权、服务地址和统一返回值处理由 Service 配置负责。
 
 #### `responseSchema` 响应模型规范
 
@@ -498,9 +505,10 @@ import defineConfig from 'api-datamodel/codegen/defineConfig.js'
 export default defineConfig({
   // 所有接口共用的配置。
   outputDir: 'src/api',
-  resource: {
-    // 每个输出目录都会生成 resource.ts；指定后会从该路径导入 Resource 类。
-    importPath: '@/api/dataModel/resource',
+  service: {
+    // 每个输出目录都会生成 resource.ts；路径和名称共同定位已配置的 Service。
+    importPath: '@/api/dataModel',
+    importName: 'service',
     rootPath: 'system',
     rootPathSource: 'gateway',
   },
@@ -533,10 +541,11 @@ export default defineConfig({
 
 `defineConfig` 原样返回配置对象，并提供 TypeScript 类型提示。
 
-生成器与 Resource 有两种对应方式：
+生成器通过两个独立字段指定已经配置完成的 Service：`service.importPath` 是模块路径，`service.importName` 是该模块导出的 Service 名称。
 
-- 默认资源模式：使用 `resource` 配置 Resource 类、`rootPath` 和前缀来源；生成器会在输出目录生成 `resource.ts`，省略 `resource.importPath` 时使用内置 `ApiResource`。
-- 多服务域模式：为每个接口配置指定不同的 `resource.importPath`；生成的 `resource.ts` 会导入该路径的默认 Resource 类，服务地址、鉴权和请求规则由该类负责。
+- 没有 `rootPath` 时，生成的 `resource.ts` 直接导出 `service.createApi`。
+- 存在 `rootPath` 时，生成器导出 `service.with({ rootPath }).createApi`，不会修改原 Service。
+- 最终合并配置中 `service.importPath` 和 `service.importName` 都是必填项；Service 已负责 adapter、服务地址、鉴权和返回转换，codegen 只负责按需派生 `rootPath`。
 
 多服务域示例：
 
@@ -544,8 +553,9 @@ export default defineConfig({
 apis: {
   sys: {
     url: 'http://127.0.0.1:8080/v3/api-docs/系统管理',
-    resource: {
-      importPath: '@/api/systemResource',
+    service: {
+      importPath: '@/api/services',
+      importName: 'systemService',
       rootPath: 'system',
       rootPathSource: 'gateway',
     },
@@ -559,7 +569,7 @@ apis: {
 | 配置项 | 位置 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `outputDir` | 全局或单接口 | `src/api` | 生成根目录 |
-| `resource` | 全局或单接口 | `rootPathSource: 'gateway'` | Resource 类导入路径、Factory 前置路径及其来源 |
+| `service` | 全局或单接口 | `rootPathSource: 'gateway'` | Service 模块路径、导出名称、派生 `rootPath` 及其来源 |
 | `responseSchema` | 全局或单接口 | `AjaxResult` + `data` | 响应模型包装规则；配置 `namePrefix` 和 `dataField` |
 | `url` | 单接口 | 无 | Swagger/OpenAPI 远程地址或本地 JSON/YAML 文件路径 |
 | `outputFolder` | 单接口 | 当前配置名称 | 输出子目录 |
@@ -647,29 +657,29 @@ await userApi.list(
 
 | 字段 | 作用 |
 | --- | --- |
-| `silent` | 不显示 Loading，也不显示成功或错误消息 |
-| `backendLoad` | 不进入 Loading 队列，但仍可处理消息 |
+| `silent` | 不参与 Loading 和消息聚合，但仍进入错误拦截和全局活动请求登记 |
 | `messageMode` | 错误提示模式：`none`、`message` 或 `modal` |
 | `signal` | 使用标准 `AbortSignal` 取消单个请求 |
-| `IgnoreInterceptor` | 跳过返回数据转换和业务拦截 |
+| `rawResponse` | 直接返回适配器原始响应，跳过返回数据转换和业务拦截 |
 
-`IgnoreInterceptor` 是当前 API 的实际字段名，首字母必须大写。非 JSON 的 `responseType` 默认会自动跳过业务拦截。
+未配置 `rawResponse` 时，非 JSON 的 `responseType` 默认返回适配器原始响应；显式设为 `false` 可强制执行响应处理。
 
 ### Loading 和消息
 
 普通请求在持续超过 200ms 后才显示 Loading，避免短请求造成闪烁；同批并发请求全部结束后统一关闭。
 
 ```ts
-import { setLoadingServe } from 'api-datamodel'
+import { setRequestHooks } from 'api-datamodel'
 
-setLoadingServe({
-  show() {
+setRequestHooks({
+  showLoading() {
     // 打开全局 Loading
   },
-  message(message) {
-    // 每个请求结束时可选地处理消息
+  interceptError(error, { abortAll }) {
+    // 系统错误收到后立即执行；所有取消都不会进入这里。
+    if (error.code === '1401') abortAll()
   },
-  close(lastMessage, messageList) {
+  complete({ errors, successes }) {
     // 关闭 Loading，并集中处理本批请求的消息
   },
 })
@@ -686,7 +696,7 @@ save(data: UserInput) {
 }
 ```
 
-在请求回调中传入空字符串可取消当前请求的默认消息：
+第一次设置手动成功消息时，会清除本批次已经收集的后端成功消息；后续后端成功消息会被忽略。错误消息不受影响。空消息会被忽略：
 
 ```ts
 await userApi.save(data).then((result) => {
@@ -705,23 +715,22 @@ controller.abort('用户取消')
 await request
 ```
 
-也可取消某个资源的全部进行中请求：
-
-```ts
-userApi.$http.abort('页面已离开')
-```
+所有形式的取消都不会进入 `interceptError`，也不会进入批次消息。全局中止仅通过 `interceptError` 的 `abortAll()` 上下文提供。
 
 ## 文件上传、下载和跨平台适配
 
 ### Web 文件上传与下载
 
 ```ts
+import { Resource } from 'api-datamodel'
+
+const fileApi = Resource.createService(defaultHttpOptions).createApi('file', {})
 const formData = new FormData()
 formData.append('file', file)
 
-await userApi.$http.upload('avatar', formData)
+await fileApi.$http.upload('avatar', formData)
 
-const { filename, data } = await userApi.$http.downloadFile('export')
+const { filename, data } = await fileApi.$http.downloadFile('export')
 ```
 
 `downloadFile` 默认从 `Content-Disposition` 解析普通文件名和 RFC 5987 编码文件名，返回 `{ filename, data }`。
@@ -731,12 +740,13 @@ const { filename, data } = await userApi.$http.downloadFile('export')
 `buildAdapter` 将平台的 `request`、`uploadFile` 和 `downloadFile` 统一为请求适配器：
 
 ```ts
-import { ApiResource, buildAdapter } from 'api-datamodel'
+import { buildAdapter, Resource } from 'api-datamodel'
 
-export const createApi = ApiResource.factory({
+export const service = Resource.createService({
   adapter: buildAdapter(uni),
   serverUrl: 'https://example.com/api',
 })
+export const createApi = service.createApi
 ```
 
 跨平台上传参数：
@@ -755,14 +765,13 @@ await userApi.$http.upload('avatar', {
 
 | 导出 | 作用 |
 | --- | --- |
-| `Http` | 标准请求类；提供 `request`、`get`、`post`、`put`、`delete`、`abort` 和工厂方法 |
-| `ApiResource` | 在 `Http` 上增加 `upload`、`downloadFile` 的业务资源类 |
-| 业务 API 实例的 `$http` | 只读的底层请求实例；用于处理方法重名、直接发起请求或取消该资源的请求 |
+| `Http` | 标准请求类；提供请求方法和静态 `createService()` |
+| `Resource` | 单纯在 `Http` 上增加 `upload`、`downloadFile`，并继承静态 `createService()` |
+| `createService` | `Resource.createService()` 的顶层等价入口 |
+| `setRequestHooks` | 配置全局 `showLoading`、`interceptError` 和 `complete` 请求生命周期 Hook |
+| 业务 API 实例的 `$http` | 原型层提供的只读属性，指向独立 Http/Resource 请求实例，用于调用底层请求能力 |
 | `defineConfig` | 为请求配置提供 TypeScript 类型约束 |
 | `api-datamodel/codegen/defineConfig.js` | API Codegen 配置的 `defineConfig` 默认导出 |
-| `setGlobalConfig` | 合并全局请求配置 |
-| `serviceInit` | 设置全局配置并返回资源工厂 |
-| `setLoadingServe` | 接入全局 Loading 和消息服务 |
 | `buildAdapter` | 适配 UniApp/Taro 类跨平台请求 API |
 | `fetchAdapter` | 将浏览器或 Node.js 18+ 的标准 Fetch API 包装为请求适配器 |
 
@@ -772,5 +781,5 @@ await userApi.$http.upload('avatar', {
 - 业务方法覆盖 `get`、`post`、`delete`、`request` 等名称时，必须通过 `this.$http` 调用底层请求。
 - API Codegen 开启 `cleanOutput` 后会清理对应输出目录，请勿在生成目录手写业务文件。
 - `transformResponse` 应明确返回 `success`，否则无法可靠判断业务成功状态。
-- 非 `silent` 请求需要先调用 `setLoadingServe`；没有 UI 需求时可传入空实现。
-- 资源名以 `/` 开头会绕过 `rootPath`，业务域模式下通常不应使用前导斜杠。
+- `setRequestHooks` 是可选的全局配置；没有 UI 和系统错误处理需求时无需设置。
+- 路径会按 `serverUrl + rootPath + modulePath + requestPath` 统一规范化，建议各业务路径段不带前后 `/`。

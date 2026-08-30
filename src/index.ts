@@ -1,18 +1,19 @@
 /// <reference types="../types" />
-/*
- * @Description: api数据模型化生成
- * @Autor: 范阳峰
- */
-export { serviceInit, setLoadingServe, setGlobalConfig, defineConfig } from './service'
-/**
- * 标准http请求类
- */
-export { default as Http } from './Http'
-/**
- * http package 资源类
- */
-export { default as ApiResource } from './Resource'
 
-export { buildAdapter } from './mpRequest'
-/** 标准 Fetch API 请求适配器 */
+import Resource from './Resource'
+import Http from './Http'
+import { setRequestHooks } from './utils/requestManager'
+
+export function defineConfig(options: HttpOptions) {
+  return options
+}
+
+export function createService(options: HttpOptions) {
+  return Resource.createService(options)
+}
+
+export { Http, Resource, setRequestHooks }
+export { buildAdapter } from './platformAdapter'
 export { fetchAdapter } from './fetchAdapter'
+export type { Service } from './service'
+export type { RequestBatchResult, RequestHooks } from './utils/requestManager'
