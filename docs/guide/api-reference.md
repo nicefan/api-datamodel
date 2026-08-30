@@ -1,368 +1,114 @@
-# API Reference
+# API 参考
 
-本文档用于快速了解 `api-datamodel` 的公共能力和各层职责。
+## `createService(options)`
 
-`api-datamodel` 是一个轻量级 TypeScript API 分层管理库，核心通过：
-
-```text
-Adapter → Http → Resource → Api
-```
-
-将请求实现、后台服务配置和业务接口描述分离。
-
-项目主要包含：
-
-- **DataModel**：核心 API 分层模型。
-- **CacheResult**：独立的请求缓存管理工具。
-- **API Codegen**：基于 Swagger / OpenAPI 自动生成 DataModel 业务 API。
-
----
-
-# DataModel
-
-DataModel 的目标不是替代 Axios、fetch 等请求库，而是在请求能力之上建立稳定的业务 API 层。
-
-## Adapter
-
-Adapter 负责实际发送请求。
-
-DataModel 不绑定具体请求实现，可以接入：
-
-- Axios
-- fetch
-- UniApp request
-- Taro request
-- 自定义请求实现
-
-例如：
+使用 `Resource` 和 `HttpOptions` 创建 `Service<Resource>`，等价于 `Resource.createService(options)`。
 
 ```ts
-import { fetchAdapter } from 'api-datamodel'
-
-const config = {
-  adapter: fetchAdapter,
-}
+const service = createService(options)
 ```
 
-Adapter 只关注：
+## `defineConfig(options)`
 
-- 如何发送请求
-- 如何返回 Promise
-- 如何处理平台差异
+原样返回 `HttpOptions`，用于获得 TypeScript 类型检查和推导。
 
----
-
-# Http
-
-Http 是通用请求处理层。
-
-负责：
-
-- 请求发送
-- 请求配置合并
-- 请求拦截
-- 请求取消
-- Loading / Message 处理
-- Adapter 调用
-- 跨平台请求衔接
-
-基础方法：
+## `Service`
 
 ```ts
-request()
-get()
-post()
-put()
-delete()
-```
-
-扩展能力：
-
-```ts
-upload()
-downloadFile()
-abort()
-```
-
-Http 可以单独使用：
-
-```ts
-import { Http } from 'api-datamodel'
-```
-
----
-
-# Resource
-
-Resource 是 DataModel 的服务资源层。
-
-它描述一个后台服务的公共规则：
-
-- `serverUrl`
-- `rootPath`
-- 默认请求配置
-- Token / Header
-- 请求拦截
-- 返回数据转换
-- 服务级请求扩展
-
-例如：
-
-```text
-/api/user/list
-```
-
-对应：
-
-```text
-/api     Resource 服务入口
-/user    Api 业务模块
-/list    业务操作
-```
-
-Resource 负责把后台服务规则集中管理，业务代码无需关心完整 URL。
-
-## ApiResource
-
-`ApiResource` 是默认 Resource 实现。
-
-它继承 Http，并增加资源级能力：
-
-```ts
-upload()
-downloadFile()
-```
-
-如果某个后台服务有特殊能力，可以继承扩展：
-
-```ts
-class CustomResource extends ApiResource {
-  exportFile(path: string) {
-    return this.get(path)
+interface Service<H> {
+  readonly http: H
+  readonly createApi: {
+    <T>(methods: T): T & { readonly $http: H }
+    <T>(modulePath: string, methods?: T): T & { readonly $http: H }
   }
+  with(overrides: Partial<HttpOptions>): Service<H>
 }
 ```
 
----
+- `http`：Service 级请求实例。
+- `createApi`：创建带独立 `$http` 的业务 API。
+- `with`：浅合并配置并返回独立 Service。
 
-# Api
+## `HttpOptions`
 
-Api 是业务模块层。
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `adapter` | `RequestAdapter` | 必填，请求适配器 |
+| `serverUrl` | `string` | 服务器地址或代理前缀 |
+| `rootPath` | `string` | 业务请求前缀 |
+| `defRequestConfig` | `DefaultRequestConfig` | 默认请求配置 |
+| `requestInterceptors` | `(config) => config` | 请求发送前的同步处理 |
+| `transformResponse` | `(result) => { code, message, data, success }` | 业务响应转换 |
 
-业务 API 由 Resource 创建：
-
-```ts
-const userApi = createApi('user', {
-  list() {
-    return this.get('list')
-  },
-})
-```
-
-使用：
-
-```ts
-await userApi.list()
-```
-
-Api 负责描述业务能力：
-
-```text
-userApi
- ├─ list
- ├─ getInfo
- ├─ save
- └─ delete
-```
-
-不负责：
-
-- 服务地址
-- Token
-- Header
-- 返回结构转换
-- 请求生命周期
-
-这些由 Resource 和 Http 统一处理。
-
----
-
-# 多服务 Resource
-
-一个项目可以拥有多个服务域：
-
-```text
-系统服务
-    ↓
-createSystemApi
-    ↓
-userApi
-
-工作流服务
-    ↓
-createWorkflowApi
-    ↓
-taskApi
-```
-
-不同 Resource 可以拥有不同：
-
-- 地址
-- 鉴权方式
-- Header
-- 返回格式
-- 超时配置
-
-业务层只使用对应 API：
+## `Http`
 
 ```ts
-userApi.list()
-taskApi.pending()
+new Http(options?: HttpOptions)
+new Http(modulePath?: string, options?: HttpOptions)
 ```
-
----
-
-# $http
-
-业务 API 实例会提供只读 `$http`。
-
-它代表当前 Resource 的底层 Http 实例。
-
-例如业务方法覆盖底层方法名时：
-
-```ts
-export const userApi = createApi('user', {
-  delete(id) {
-    return this.$http.delete(`${id}`)
-  },
-})
-```
-
-原因：
-
-`get`、`post`、`delete`、`request` 等名称同时也是 Http 方法。
-
-通过 `$http` 可以明确调用底层请求能力。
-
----
-
-# CacheResult
-
-CacheResult 是独立的请求缓存工具。
-
-它可以单独使用，也可以配合 DataModel API。
-
-## 创建缓存
-
-```ts
-import { createCache } from 'api-datamodel'
-
-const getUsers = createCache(userApi.list)
-```
-
-使用：
-
-```ts
-const cache = getUsers({ page: 1 })
-
-const result = await cache.getResult()
-```
-
-支持：
-
-- 请求复用
-- 参数缓存
-- reload
-- 结果映射
-- 字典转换
-
-## CacheResult API
 
 | 方法 | 说明 |
 | --- | --- |
-| `getResult()` | 异步获取结果 |
-| `result` | 获取当前结果并触发加载 |
-| `getMap()` | 获取映射数据 |
-| `map` | 当前映射结果 |
-| `reload()` | 重新请求 |
+| `request<R>(requestPath, config?)` | 发起自定义请求 |
+| `get<T>(requestPath, params?, config?)` | GET 请求 |
+| `post<T>(requestPath, data?, config?)` | POST 请求 |
+| `put<T>(requestPath, data?, config?)` | PUT 请求 |
+| `delete<T>(requestPath, params?, config?)` | DELETE 请求 |
+| `setMessage(message?)` | 向当前请求批次写入手动成功消息 |
+| `Http.createService(options)` | 基于当前 Http 类型创建 Service |
 
----
+## `Resource`
 
-# API Codegen
+`Resource extends Http`。
 
-API Codegen 用于将 Swagger/OpenAPI 文档转换为 DataModel 业务 API。
+| 方法 | 说明 |
+| --- | --- |
+| `upload(requestPath, data, config?)` | 使用 `multipart/form-data` 发起上传 |
+| `downloadFile(requestPath, config?)` | 下载二进制数据并返回 `{ filename, data }` |
+| `Resource.createService(options)` | 基于 Resource 创建 Service |
 
-生成内容：
+## `RequestConfig`
 
-- TypeScript 类型
-- Resource 请求方法
-- Api 业务模块
-- index 导出文件
+除常见的 `method`、`headers`、`params`、`data`、`timeout`、`responseType` 等字段外，还支持：
 
-生成流程：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `signal` | `AbortSignal` | 取消单个请求 |
+| `silent` | `boolean` | 不参与 Loading 和消息聚合 |
+| `messageMode` | `'none' \| 'message' \| 'modal'` | 错误提示方式 |
+| `rawResponse` | `boolean` | 是否直接返回适配器原始响应 |
 
-```text
-Swagger/OpenAPI
-       ↓
- API Codegen
-       ↓
-Resource + Api
-       ↓
-业务调用
-```
+`silent` 请求仍参与错误拦截、活动请求登记和 `abortAll()`。所有取消都不会进入错误拦截或消息聚合。
 
-配置示例：
+## `setRequestHooks(hooks)`
 
-```js
-export default {
-  output: 'src/api',
-  httpPath: '@/api/dataModel',
-  httpModule: 'createApi',
+设置全局请求生命周期 Hook：
+
+```ts
+interface RequestHooks {
+  showLoading?(): void
+  interceptError?(error: any, context: { abortAll(): void }): void
+  complete?(result: RequestBatchResult): void
+}
+
+interface RequestBatchResult {
+  errors: MessageData[]
+  successes: MessageData[]
 }
 ```
 
-适用于：
+再次调用会替换当前全局 Hook 配置。
 
-- 后端接口数量较多
-- Swagger 驱动开发
-- 多业务模块项目
+## 请求适配器
 
-生成代码建议视为接口文档的映射，不建议直接修改生成文件。
+### `fetchAdapter`
 
----
+标准 Fetch API 的请求适配器，适用于浏览器和 Node.js 18+。
 
-# 公共导出
+### `buildAdapter(platform)`
 
-| API | 说明 |
-| --- | --- |
-| `Http` | 基础请求处理层 |
-| `ApiResource` | 默认 Resource 实现 |
-| `defineConfig` | Resource 配置定义 |
-| `serviceInit` | 创建业务 API 工厂 |
-| `setLoadingServe` | Loading / Message 接入 |
-| `buildAdapter` | 平台请求适配 |
-| `createCache` | 创建请求缓存 |
-| `CacheResult` | 缓存结果管理 |
-| `createCacheStore` | 创建缓存空间 |
+将 UniApp、Taro 一类平台对象的 `request`、`uploadFile` 和 `downloadFile` 转换为请求适配器。平台请求任务会响应外部 `AbortSignal`。
 
----
+## 类型导出
 
-# 设计原则
-
-`api-datamodel` 的核心思想：
-
-```text
-请求库负责：如何发送请求
-
-DataModel 负责：如何组织业务 API
-```
-
-通过分层，让业务代码只关注：
-
-```ts
-userApi.list()
-orderApi.save()
-taskApi.pending()
-```
-
-而请求规则、服务配置和通用能力统一管理。
+包入口导出 `Service`、`RequestHooks` 和 `RequestBatchResult` 类型。`RequestConfig`、`HttpOptions`、`MessageData` 等请求类型通过包的全局类型声明提供。

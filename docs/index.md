@@ -3,84 +3,83 @@ layout: home
 
 hero:
   name: api-datamodel
-  text: 轻量级 TypeScript API 分层管理库
-  tagline: 通过 Adapter → Http → Resource → Api 分离请求处理、服务资源和业务接口。
+  text: TypeScript 业务 API 请求模型
+  tagline: 通过 Http、Resource 与 Service 统一路径、请求生命周期和业务 API。
   actions:
     - theme: brand
       text: 快速开始
       link: /guide/getting-started
     - theme: alt
-      text: GitHub
-      link: https://github.com/nicefan/api-datamodel
+      text: API Reference
+      link: /guide/api-reference
 
 features:
-  - title: DataModel
-    details: 核心 API 分层模型，将请求处理、后台服务控制和业务 Api 描述分离。
-  - title: CacheResult
-    details: 独立的请求缓存管理工具，支持结果缓存、重新加载以及记录和字典映射。
+  - title: Service 建模
+    details: 使用一份 HttpOptions 创建 Service，再按 modulePath 生成隔离的业务 API 实例。
+  - title: 请求生命周期
+    details: 统一管理 Loading、消息批次、错误拦截、标准取消信号和全局活动请求。
   - title: API Codegen
-    details: 基于 DataModel 的接口自动化工具，根据 Swagger / OpenAPI 生成业务 Api。
+    details: 根据 Swagger / OpenAPI 生成类型安全的业务 API，并直接复用项目中的 Service。
 ---
 
-## 核心理念
+## 核心模型
 
-DataModel 将 API 分为四层：
+```text
+RequestAdapter
+      ↓
+HttpOptions → Service
+                 ├─ http
+                 ├─ with()
+                 └─ createApi(modulePath, methods)
+                              ↓
+                           API 实例
+                              └─ $http → 独立 Resource 实例
+```
 
-- **Adapter**：连接 Axios、fetch、UniApp、Taro 等实际请求实现。
-- **Http**：负责请求发送、配置处理、取消请求以及通用请求能力。
-- **Resource**：描述后台服务，管理服务地址、鉴权、拦截和数据转换。
-- **Api**：描述具体业务模块和接口方法。
+- **Http**：执行请求、拼接路径、处理响应并登记请求生命周期。
+- **Resource**：继承 Http，补充上传、下载等通用请求能力。
+- **Service**：保存服务配置，派生服务前缀并创建业务 API。
+- **API 实例**：只暴露业务方法，通过只读 `$http` 调用底层请求。
+
+## 路径模型
+
+所有请求统一按四段组成：
+
+```text
+serverUrl + rootPath + modulePath + requestPath
+```
 
 例如：
 
 ```text
-/api/user/list
+/api + v1 + user + list → /api/v1/user/list
 ```
 
-其中：
-
-- `/api`：Resource，对应后台服务或网关前缀。
-- `/user`：Api，对应业务模块。
-- `/list`：模块中的具体接口。
-
-最终业务代码只关注业务能力：
+业务代码只表达业务能力：
 
 ```ts
-userApi.list()
-userApi.save(data)
+await userApi.list({ page: 1 })
+await userApi.save(data)
 ```
 
-## 三个组成部分
+## 主要能力
 
-### DataModel
+### Runtime
 
-核心 API 分层能力。
-
-用于统一管理：
-
-- 请求实现
-- 服务资源
-- 业务接口
-- 多后台服务
-
-### CacheResult
-
-独立的请求缓存工具。
-
-可以与 DataModel 结合，也可以单独用于任意异步请求：
-
-- 缓存请求结果
-- reload 刷新
-- 生成记录映射
-- 生成字典映射
+- 可替换的请求适配器
+- 多 Service 配置隔离
+- `service.with()` 浅合并派生
+- 独立 `$http` 实例
+- Loading 延迟显示与批次完成
+- 错误即时拦截与全局中止
+- `AbortSignal` 单请求取消
 
 ### API Codegen
 
-DataModel 的自动化生成工具。
+- OpenAPI 类型生成
+- 业务模块和方法生成
+- Service 导入与 `rootPath` 派生
+- 重名方法诊断
+- 原子替换生成目录
 
-根据 Swagger / OpenAPI 文档生成：
-
-- TypeScript 类型
-- Api 模块
-- Resource 请求代码
-
+从 [快速开始](/guide/getting-started) 创建第一个 Service，或直接查看 [API Reference](/guide/api-reference)。

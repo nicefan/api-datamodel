@@ -1,17 +1,9 @@
 # 快速开始
 
-`api-datamodel` 通过 Resource 管理后台服务规则，再由 Resource 创建业务模块 API。
-
-基本使用流程：
+`api-datamodel` 用 Service 集中管理请求配置，再由 Service 创建各业务模块的 API 实例。
 
 ```text
-请求适配器
-   ↓
-Resource 配置
-   ↓
-业务模块 API
-   ↓
-页面或业务代码调用
+RequestAdapter → HttpOptions → Service → API → $http
 ```
 
 ## 安装
@@ -20,171 +12,125 @@ Resource 配置
 pnpm add api-datamodel
 ```
 
-如果项目使用其他请求库，也可以通过自定义 Adapter 接入。
+运行环境需要 Node.js 18.17 或更高版本。浏览器项目可直接使用内置的 `fetchAdapter`，也可以接入 Axios 或自定义适配器。
 
-## 创建默认 Resource
+## 创建 Service
 
 创建 `src/api/dataModel.ts`：
 
 ```ts
 import {
+  createService,
   defineConfig,
   fetchAdapter,
-  serviceInit,
-  setLoadingServe,
+  setRequestHooks,
 } from 'api-datamodel'
 
-setLoadingServe({
-  show() {},
-  close() {},
+setRequestHooks({
+  showLoading() {
+    // 打开全局 Loading
+  },
+  interceptError(error, { abortAll }) {
+    if (error.code === 401) abortAll()
+  },
+  complete({ errors, successes }) {
+    // 关闭 Loading，并集中展示本批请求的消息
+  },
 })
 
-export const defaultResourceConfig = defineConfig({
+export const defaultHttpOptions = defineConfig({
   adapter: fetchAdapter,
-
   serverUrl: '/api',
-
-  rootPath: '',
-
   defRequestConfig: {
-    timeout: 30000,
+    timeout: 30_000,
+    headers: { 'content-type': 'application/json' },
   },
-
   requestInterceptors(config) {
-    // 统一处理 token、租户信息等
     return config
   },
-
   transformResponse(result) {
+    const { code, msg, data } = result
     return {
-      code: result.code,
-      message: result.msg,
-      data: result.data,
-      success: result.code === 0,
+      code,
+      message: msg,
+      data,
+      success: code === 0,
     }
   },
 })
 
-export const createApi = serviceInit(defaultResourceConfig)
+export const service = createService(defaultHttpOptions)
+export const createApi = service.createApi
 ```
 
-Resource 负责：
+`transformResponse` 返回 `{ code, message, data, success }`。成功请求直接向业务方法返回 `data`，失败请求进入错误处理。
 
-- 服务地址
-- 默认请求配置
-- 鉴权和请求拦截
-- 返回数据转换
-
-Api 负责描述具体业务模块。
-
-## 定义业务 Api
+## 创建业务 API
 
 ```ts
+import { createApi } from './dataModel'
+
 interface User {
   id: number
   name: string
 }
 
+interface UserQuery {
+  keyword?: string
+  page: number
+}
+
 export const userApi = createApi('user', {
-  list(query) {
-    return this.$http.get<User[]>('list', query)
+  list(query: UserQuery, config?: RequestConfig) {
+    return this.$http.get<User[]>('list', query, config)
   },
 
-  getInfo(id: number) {
-    return this.$http.get<User>(`${id}`)
+  getInfo(id: number, config?: RequestConfig) {
+    return this.$http.get<User>(`${id}`, undefined, config)
   },
 
-  save(data) {
-    return this.$http.post('save', data)
+  save(data: Partial<User>) {
+    return this.$http.post<number>('save', data).then((id) => {
+      this.$http.setMessage('保存成功')
+      return id
+    })
+  },
+
+  delete(id: number) {
+    return this.$http.delete<boolean>(`${id}`)
   },
 })
 ```
 
-业务代码：
+API 实例只包含传入的业务成员，原型层提供只读的 `$http`。每个 API 都有独立的 Resource 请求实例，并使用所属 Service 的配置。
+
+## 调用与取消
 
 ```ts
-const users = await userApi.list({
-  page: 1,
-})
+const users = await userApi.list({ page: 1 })
 
-const user = await userApi.getInfo(1001)
+const controller = new AbortController()
+const request = userApi.getInfo(1001, { signal: controller.signal })
+
+controller.abort('页面已离开')
+await request
 ```
+
+所有取消都不会进入 `interceptError`，也不会进入成功或错误消息聚合。
 
 ## 请求路径
 
-Resource、Api 和方法会组合成最终请求地址。
-
-例如：
+最终 URL 按以下顺序拼接并规范化：
 
 ```text
-serverUrl  /api
-resource   user
-method     list
+serverUrl + rootPath + modulePath + requestPath
 ```
 
-最终：
-
-```text
-/api/user/list
-```
-
-业务代码只关注：
-
-```ts
-userApi.list()
-```
-
-无需在页面维护完整 URL。
-
-## 使用 $http
-
-业务方法与底层 HTTP 方法同名时，需要通过 `$http` 调用底层请求：
-
-```ts
-export const userApi = createApi('user', {
-  delete(id) {
-    return this.$http.delete(`delete/${id}`)
-  },
-})
-```
-
-`$http` 是当前 Resource 对应的请求实例，会继承：
-
-- 服务地址
-- 请求配置
-- 拦截器
-- 返回转换
-- 消息处理
-
-## 多服务场景
-
-普通项目只需要一个默认 Resource。
-
-如果项目连接多个后台服务，可以创建多个 Resource：
-
-```text
-系统服务配置
-    ↓
-createSystemApi
-    ↓
-userApi
-
-工作流服务配置
-    ↓
-createWorkflowApi
-    ↓
-taskApi
-```
-
-每个服务域可以拥有独立的：
-
-- serverUrl
-- 鉴权方式
-- 请求头
-- 返回结构转换
+例如 `/api + system + user + list` 得到 `/api/system/user/list`。四部分都可以为空，只需保证最终 URL 对当前适配器合法；业务路径段通常不带前后 `/`。
 
 ## 下一步
 
-- 查看 [DataModel](./datamodel)
-- 查看 [Resource](./resource)
-- 查看 [API Reference](./api-reference)
+- [运行时模型](./datamodel)
+- [Service 与 Resource](./resource)
+- [API 参考](./api-reference)
+- [API Codegen](../swagger/)

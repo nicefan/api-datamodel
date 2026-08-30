@@ -3,14 +3,14 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   lang: 'zh-CN',
   title: 'api-datamodel',
-  description: '轻量级 TypeScript API 分层管理库',
+  description: '面向业务资源组织前端接口的 TypeScript 请求模型',
   base: process.env.DOCS_BASE || '/api-datamodel/',
   cleanUrls: true,
   lastUpdated: true,
   themeConfig: {
     nav: [
       { text: '指南', link: '/guide/getting-started' },
-      { text: 'CacheResult', link: '/cache/' },
+      { text: 'API Reference', link: '/guide/api-reference' },
       { text: 'API Codegen', link: '/swagger/' },
       { text: 'GitHub', link: 'https://github.com/nicefan/api-datamodel' }
     ],
@@ -19,14 +19,14 @@ export default defineConfig({
         text: '指南',
         items: [
           { text: '快速开始', link: '/guide/getting-started' },
-          { text: 'DataModel', link: '/guide/datamodel' },
-          { text: 'Resource', link: '/guide/resource' }
+          { text: '运行时模型', link: '/guide/datamodel' },
+          { text: 'Service 与 Resource', link: '/guide/resource' },
+          { text: 'API Reference', link: '/guide/api-reference' }
         ]
       },
       {
         text: '工具',
         items: [
-          { text: 'CacheResult', link: '/cache/' },
           { text: 'API Codegen', link: '/swagger/' }
         ]
       }

@@ -1,331 +1,145 @@
 # API Codegen
 
-API Codegen 是 `api-datamodel` 的自动化生成工具，用于将 Swagger / OpenAPI 文档转换为 DataModel 可直接使用的业务 API 模块。
-
-它负责生成：
-
-- TypeScript 数据类型
-- Resource 请求代码
-- 业务 Api 模块
-- 模块导出文件
-
-生成结果遵循：
+API Codegen 根据 Swagger/OpenAPI 文档生成 TypeScript 数据类型和业务 API，并通过已配置的 Service 接入运行时。
 
 ```text
-Swagger / OpenAPI
-        ↓
-   API Codegen
-        ↓
- Resource + Api
-        ↓
- 业务代码调用
+Swagger/OpenAPI → 数据类型与 API 模块 → Service.createApi → 业务调用
 ```
 
-## 设计目标
+## 安装与命令
 
-API Codegen 不是简单生成请求方法，而是将后台接口文档转换成 DataModel 的业务资源模型。
+安装 `api-datamodel` 后可使用：
 
-生成后的业务代码无需关心：
+```bash
+api-datamodel-codegen
+api-datamodel-codegen sys
+api-datamodel-codegen ./openapi.yaml sys
+api-datamodel-codegen https://example.com/openapi.json --output sys
+```
 
-- 服务地址
-- 网关前缀
-- 请求配置
-- 鉴权处理
-- 返回结构转换
-
-这些能力由 Resource 统一管理。
-
-## Swagger 编写规范
-
-为了保证生成结果稳定，建议后台接口遵循以下规则。
-
-## 路径与业务模块
-
-接口路径的第一个有效路径段会作为业务资源模块。
-
-例如：
+常用选项：
 
 ```text
-/user/list
+-c, --config <路径>  指定配置文件
+-o, --output <目录>  指定输出文件夹
+-h, --help           显示帮助
 ```
-
-生成：
-
-```ts
-userApi.list()
-```
-
-路径结构：
-
-```text
-/user/list
- │    │
- │    └── Api 方法
- │
- └──── Resource / Api 模块
-```
-
-建议：
-
-- 同一业务模块使用统一路径前缀。
-- 不要在 Swagger 路径中重复网关地址。
-- 网关前缀应该交给 Resource 配置。
-
-例如：
-
-```text
-推荐：
-/user/list
-
-不推荐：
-/api/v1/user/list
-```
-
-如果 Swagger 文档已经包含网关路径，需要通过 Resource 的 `rootPathSource` 配置处理。
-
-## tags 规则
-
-`tags[0]` 会参与接口模块分组。
-
-建议：
-
-```yaml
-tags:
-  - User
-```
-
-与路径保持一致：
-
-```text
-/user
-User
-```
-
-这样生成后的 API 模块更加清晰。
-
-## operationId
-
-`operationId` 会作为生成后的 API 方法名。
-
-要求：
-
-- 必填
-- 唯一
-- 使用合法 TypeScript 方法名
-- 能表达业务含义
-
-例如：
-
-```yaml
-operationId: getUser
-```
-
-生成：
-
-```ts
-userApi.getUser()
-```
-
-## 参数生成规则
-
-| Swagger 定义 | 生成结果 |
-| --- | --- |
-| path 参数 | 方法独立参数 |
-| query 参数 | 查询对象参数 |
-| requestBody | 请求数据参数 |
-| header 参数 | Resource 或请求拦截器处理 |
-
-例如：
-
-```yaml
-/user/{id}
-```
-
-生成：
-
-```ts
-getUser(id: number)
-```
-
-请求体：
-
-```yaml
-requestBody:
-  required: true
-```
-
-生成：
-
-```ts
-saveUser(data: SaveUserRequest)
-```
-
-## 返回类型
-
-接口返回模型来自 Swagger 的 `components.schemas`。
-
-例如：
-
-```yaml
-schema:
-  $ref: '#/components/schemas/User'
-```
-
-生成：
-
-```ts
-Promise<User>
-```
-
-如果后台统一返回包装结构，例如：
-
-```text
-AjaxResult<User>
-```
-
-Codegen 会根据响应模型配置提取业务数据类型。
-
-## HTTP 方法映射
-
-生成规则：
-
-| HTTP | DataModel |
-| --- | --- |
-| GET | `$http.get` |
-| POST | `$http.post` |
-| PUT | `$http.put` |
-| DELETE | `$http.delete` |
-
-## 特殊接口处理
-
-### 下载接口
-
-如果接口没有业务返回值，生成器可能判断为文件下载接口。
-
-因此普通业务接口不要使用无返回值的 `204` 响应。
-
-### 上传接口
-
-`multipart/form-data` 不会自动转换为 `upload()`。
-
-文件上传建议：
-
-```ts
-this.$http.upload()
-```
-
-或者通过自定义模板扩展生成规则。
 
 ## 配置文件
 
-创建：
+推荐在项目根目录创建 `api-datamodel.config.ts`：
 
-```text
-api-datamodel.config.mjs
-```
+```ts
+import defineConfig from 'api-datamodel/codegen/defineConfig.js'
 
-示例：
-
-```js
-export default {
-  output: 'src/api',
-
-  httpPath: '@/api/dataModel',
-  httpModule: 'createApi',
-
-  generator: {
+export default defineConfig({
+  outputDir: 'src/api',
+  service: {
+    importPath: '@/api/dataModel',
+    importName: 'service',
+    rootPath: 'system',
+    rootPathSource: 'gateway',
+  },
+  responseSchema: {
+    namePrefix: 'AjaxResult',
+    dataField: 'data',
+  },
+  documentRequest: {
+    timeout: 30_000,
+  },
+  duplicateMethodStrategy: 'strip',
+  generatorOptions: {
     cleanOutput: true,
     modular: true,
     routeTypes: true,
   },
-
   apis: {
     sys: {
-      description: '系统管理',
-      url: 'http://127.0.0.1:8080/v3/api-docs/sys',
-      folder: 'sys',
+      label: '系统管理',
+      url: 'http://127.0.0.1:8080/v3/api-docs/系统管理',
+      outputFolder: 'sys',
     },
   },
-}
+})
 ```
 
-## 多接口文档
+`service.importPath` 与 `service.importName` 分别指定 Service 的导入路径和导出名称，最终合并配置中两者都必须存在。
 
-多个后台服务可以分别配置：
+- 未设置 `rootPath` 时，生成的 `resource.ts` 导出 `service.createApi`。
+- 设置 `rootPath` 时，生成的 `resource.ts` 导出 `service.with({ rootPath }).createApi`。
 
-```js
-apis: {
-  sys: {
-    url: 'xxx/sys',
-    folder: 'sys',
-  },
+## 配置项
 
-  workflow: {
-    url: 'xxx/workflow',
-    folder: 'workflow',
-  },
-}
-```
+| 配置项 | 使用位置 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `outputDir` | 全局或单接口 | `src/api` | 生成根目录 |
+| `service` | 全局或单接口 | `rootPathSource: 'gateway'` | Service 导入和派生路径配置 |
+| `responseSchema` | 全局或单接口 | `AjaxResult` + `data` | 响应包装模型规则 |
+| `generatorOptions` | 全局或单接口 | 内置配置 | 传递给 `swagger-typescript-api` |
+| `documentRequest` | 全局或单接口 | `timeout: 30000` | 远程文档请求参数 |
+| `duplicateMethodStrategy` | 全局或单接口 | `strip` | 方法重名处理策略 |
+| `url` | 单接口 | 无 | 远程地址或本地 JSON/YAML 路径 |
+| `outputFolder` | 单接口 | 配置名称 | 生成根目录下的输出子目录 |
+| `label` | 单接口 | 配置名称 | 交互选择时显示的名称 |
 
-生成：
+单接口配置覆盖全局配置；`service`、`responseSchema`、`generatorOptions` 和 `documentRequest` 按各自字段合并。
+
+Codegen 默认按顺序查找 `api-datamodel.config.ts`、`.mts`、`.mjs`、`.js`、`.cts`、`.cjs` 和 `.json`。
+
+## 路径与模块
+
+最终请求路径由运行时组合：
 
 ```text
-src/api/
-├─ sys/
-├─ workflow/
-└─ dataModel.ts
+serverUrl + rootPath + modulePath + requestPath
 ```
 
-## 生成命令
+`service.rootPathSource` 决定生成时如何解释 `rootPath`：
 
-package.json：
+- `gateway`：`rootPath` 由网关提供，不从文档路径移除。
+- `document`：从文档路径开头移除完整 `rootPath`，或能匹配的最长尾部路径。
 
-```json
-{
-  "scripts": {
-    "genApi": "api-datamodel-swagger",
-    "genApi:sys": "api-datamodel-swagger sys"
-  }
+例如 `rootPath: 'api/v1'` 可处理以 `/api/v1` 或 `/v1` 开头的文档路径。
+
+## 方法与参数生成
+
+- `operationId` 生成业务方法名，应保持合法、稳定且唯一。
+- Path 参数生成独立方法参数。
+- Query 参数生成查询对象。
+- Request body 生成数据参数。
+- 类型来自 OpenAPI `components.schemas`。
+
+HTTP 方法映射：
+
+| HTTP 方法 | 生成调用 |
+| --- | --- |
+| GET | `$http.get()` |
+| POST | `$http.post()` |
+| PUT | `$http.put()` |
+| DELETE | `$http.delete()` |
+| PATCH、HEAD、OPTIONS | `$http.request()` |
+
+## 响应模型
+
+当响应模型名称以 `responseSchema.namePrefix` 开头，且包含 `responseSchema.dataField` 字段时，生成的方法返回该字段的业务数据类型。
+
+```ts
+responseSchema: {
+  namePrefix: 'AjaxResult',
+  dataField: 'data',
 }
 ```
 
-执行：
+接口成功响应应声明明确的 JSON Schema。无业务返回值的成功响应会生成 `$http.downloadFile()`，适合下载接口。`multipart/form-data` 不会自动生成 `$http.upload()`，上传接口可在业务扩展中显式调用。
 
-```bash
-pnpm genApi
+## 方法重名策略
 
-pnpm genApi:sys
-```
+- `strip`：移除自动数字后缀，报告冲突并继续生成。
+- `keep-suffix`：保留数字后缀，报告警告并继续生成。
+- `error`：发现冲突后终止，本次不替换正式输出目录。
 
-查看帮助：
+## 输出目录
 
-```bash
-npx api-datamodel-swagger --help
-```
+每个 `outputFolder` 会生成独立模块和 `resource.ts` Service 桥接文件。生成器只允许替换 `outputDir` 内部且不等于 `outputDir` 的子目录；开启 `cleanOutput` 时，应确保输出子目录只包含生成内容。
 
-## 生成目录规范
-
-推荐：
-
-```text
-src/api/
-├─ sys/
-│  ├─ User.ts
-│  └─ index.ts
-├─ workflow/
-└─ dataModel.ts
-```
-
-生成目录只保存自动生成内容。
-
-业务扩展建议：
-
-- 新建独立业务文件
-- 组合生成的 Api
-- 不直接修改生成文件
-
-## 注意事项
-
-- `cleanOutput` 会清理输出目录，请确认目录只包含生成文件。
-- Swagger 中保持稳定的路径、Tag 和 operationId，避免生成结果频繁变化。
-- Resource 配置属于运行时服务规则，不建议写入 Swagger。
+建议将业务扩展放在生成目录之外，通过组合生成的 API 使用，避免手工编辑生成文件。

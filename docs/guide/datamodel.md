@@ -1,225 +1,97 @@
-# DataModel
+# 运行时模型
 
-DataModel 是 `api-datamodel` 的核心 API 分层模型，用于将请求实现、后台服务规则和业务接口描述进行分离。
-
-核心职责：
-
-- Adapter：连接具体请求实现。
-- Http：处理通用请求能力。
-- Resource：定义后台服务边界。
-- Api：描述业务模块接口。
+运行时按职责分为请求适配、请求配置、Service、业务 API 和请求实例五层。
 
 ```text
-Adapter → Http → Resource → Api
+RequestAdapter
+      ↓
+ HttpOptions
+      ↓
+   Service ── with() ── 派生 Service
+      ↓
+ createApi(modulePath, methods)
+      ↓
+ API 实例 ── $http ── Resource 实例
 ```
 
-## Adapter
+## RequestAdapter
 
-Adapter 是实际发送 HTTP 请求的实现。
+适配器负责实际发送请求，接收 `RequestConfig` 并返回 Promise。内置 `fetchAdapter` 适合标准 Fetch 环境，`buildAdapter` 用于 UniApp、Taro 一类提供 `request`、`uploadFile` 和 `downloadFile` 的平台对象。
 
-DataModel 不绑定具体请求库，只要求 Adapter 接收请求配置并返回 Promise。
+适配器只处理平台通信；鉴权、默认配置、响应转换和业务路径由运行时其他层负责。
+
+## HttpOptions
+
+`HttpOptions` 描述一套请求规则：
+
+- `adapter`：必填的请求适配器。
+- `serverUrl`：服务器地址或代理前缀。
+- `rootPath`：服务内的请求前缀。
+- `defRequestConfig`：默认请求配置。
+- `requestInterceptors`：请求发送前的同步处理。
+- `transformResponse`：将后端响应转换成统一业务结构。
+
+`defineConfig()` 原样返回配置，并提供 TypeScript 类型约束。
+
+## Service
+
+`createService(options)` 创建 Service，等价于 `Resource.createService(options)`。Service 提供：
+
+- `http`：不包含模块路径的 Resource 实例，适合服务级请求。
+- `createApi()`：创建业务 API 实例。
+- `with()`：浅合并配置并创建独立的派生 Service。
 
 ```ts
-import { fetchAdapter, defineConfig } from 'api-datamodel'
-
-const config = defineConfig({
-  adapter: fetchAdapter,
-})
+const service = createService(defaultHttpOptions)
+const v2Service = service.with({ rootPath: 'v2' })
 ```
 
-支持：
+`with()` 不修改来源 Service。每次派生都直接基于创建 Service 时的 Resource 类型，不会形成逐层继承链。
 
-- fetch
-- Axios
-- UniApp
-- Taro
-- 自定义请求实现
-
-Adapter 只负责网络请求，不包含业务规则。
-
-## Http
-
-Http 是通用请求处理层，负责请求生命周期管理。
-
-主要能力：
-
-- request
-- get
-- post
-- put
-- delete
-- 请求配置合并
-- 请求取消
-- Loading / Message 处理
-- Adapter 调用
-- 跨平台请求衔接
-
-Http 可以独立使用，也可以作为 Resource 的基础能力。
-
-## Resource
-
-Resource 是 DataModel 的核心业务资源层，用于描述一个后台服务的访问规则。
-
-Resource 负责：
-
-- serverUrl
-- rootPath
-- 默认请求配置
-- 鉴权处理
-- 请求拦截
-- 返回数据转换
-- 服务级公共能力
-
-通常项目只需要一个默认 Resource：
-
-```text
-默认资源配置
-      ↓
-createApi
-      ↓
-userApi / orderApi
-```
-
-当项目连接多个后台服务时，可以按服务域创建多个 Resource：
-
-```text
-系统服务配置
-      ↓
-createSystemApi
-      ↓
-userApi
-
-工作流服务配置
-      ↓
-createWorkflowApi
-      ↓
-taskApi
-```
-
-不同 Resource 可以拥有独立的：
-
-- 服务地址
-- Token
-- Header
-- 请求参数
-- 返回数据结构
-
-## Api
-
-Api 用于描述具体业务模块。
-
-例如：
+## 业务 API 与 $http
 
 ```ts
-export const userApi = createApi('user', {
-  list(query) {
-    return this.$http.get('list', query)
-  },
-
-  save(data) {
-    return this.$http.post('save', data)
+const userApi = service.createApi('user', {
+  list() {
+    return this.$http.get<User[]>('list')
   },
 })
 ```
 
-业务代码：
+传入对象的成员会浅混入一个新对象，函数绑定到该对象。其原型只提供不可枚举、不可改写的 `$http`，指向当前 API 独立的 Resource 实例。
+
+业务模块之间不共享 `$http` 实例，但共享所属 Service 的静态配置。`modulePath` 只用于构造请求基础地址，不保存在 Service 的公共上下文中。
+
+## 请求生命周期
+
+`setRequestHooks()` 设置全局请求 Hook：
 
 ```ts
-await userApi.list({ page: 1 })
-await userApi.save(data)
-```
-
-Api 不负责：
-
-- 服务地址
-- 鉴权
-- 请求实现
-- 返回转换
-
-这些由 Resource 和 Http 统一处理。
-
-## $http
-
-每个业务 Api 实例都会提供只读的 `$http` 属性。
-
-它是当前 Resource 的底层 Http 实例，继承：
-
-- 服务地址
-- 请求配置
-- 拦截器
-- 消息处理
-
-当业务方法名称覆盖底层方法时，应使用 `$http` 调用：
-
-```ts
-export const userApi = createApi('user', {
-  delete(id) {
-    return this.$http.delete(`delete/${id}`)
-  },
+setRequestHooks({
+  showLoading() {},
+  interceptError(error, { abortAll }) {},
+  complete({ errors, successes }) {},
 })
 ```
 
-## Resource 扩展
+- 普通请求超过 200ms 后触发 `showLoading`，同批普通请求全部完成后调用 `complete`。
+- `silent: true` 不参与 Loading 和消息聚合，但仍参与 `interceptError`、活动请求登记和 `abortAll()`。
+- 所有取消都不进入 `interceptError`，也不进入消息聚合。
+- `setRequestHooks()` 是全局配置；再次调用会用新对象替换当前 Hook 配置。
 
-`ApiResource` 默认提供资源级能力：
+## 消息聚合
 
-```ts
-upload()
-downloadFile()
-```
-
-例如：
+成功响应中的消息会进入 `successes`，业务方法也可调用 `$http.setMessage()` 写入手动成功消息：
 
 ```ts
-await userApi.upload('avatar', formData)
-
-await userApi.downloadFile('export')
+return this.$http.post('save', data).then((result) => {
+  this.$http.setMessage('保存成功')
+  return result
+})
 ```
 
-如果某个后台服务存在公共扩展能力，可以继承 `ApiResource`：
+第一次写入手动成功消息时，会清除本批已收集的后端成功消息，之后到达的后端成功消息也会忽略。错误消息始终全部收集，不受手动成功消息影响。消息按后收到的排在前面。
 
-```ts
-class CustomResource extends ApiResource {
-  exportFile(path) {
-    return this.get(path)
-  }
-}
-```
+## 原始响应
 
-## 请求路径模型
-
-例如：
-
-```text
-/api/user/list
-```
-
-对应：
-
-```text
-/api
-Resource
-
-/user
-Api 模块
-
-/list
-业务方法
-```
-
-最终业务代码：
-
-```ts
-userApi.list()
-```
-
-无需维护完整 URL。
-
-## 组合能力
-
-DataModel 负责 API 分层管理。
-
-其他能力按需组合：
-
-- `CacheResult`：独立请求缓存管理工具。
-- `API Codegen`：根据 Swagger/OpenAPI 自动生成 DataModel API。
+`rawResponse: true` 直接返回适配器响应，跳过响应转换和业务成功判断。未设置时，非 JSON 的 `responseType` 自动返回原始响应；显式设置为 `false` 可强制执行业务响应处理。
