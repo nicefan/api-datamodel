@@ -3,83 +3,52 @@ layout: home
 
 hero:
   name: api-datamodel
-  text: TypeScript 业务 API 请求模型
-  tagline: 通过 Http、Resource 与 Service 统一路径、请求生命周期和业务 API。
+  text: 将后台接口组织成业务 API
+  tagline: 用 Service 统一服务边界、请求规则和类型，让业务代码只面对稳定的业务能力。
   actions:
     - theme: brand
-      text: 快速开始
-      link: /guide/getting-started
+      text: 开始使用
+      link: /guide/introduction
     - theme: alt
-      text: API Reference
-      link: /guide/api-reference
+      text: API Codegen
+      link: /codegen/
 
 features:
-  - title: Service 建模
-    details: 使用一份 HttpOptions 创建 Service，再按 modulePath 生成隔离的业务 API 实例。
-  - title: 请求生命周期
-    details: 统一管理 Loading、消息批次、错误拦截、标准取消信号和全局活动请求。
-  - title: API Codegen
-    details: 根据 Swagger / OpenAPI 生成类型安全的业务 API，并直接复用项目中的 Service。
+  - title: 业务 API 建模
+    details: 按业务模块组织 userApi、orderApi 等稳定入口，不让 URL 和请求细节散落在页面中。
+  - title: 统一请求处理
+    details: 集中管理路径、默认配置、响应转换、Loading、消息、错误和取消行为。
+  - title: OpenAPI 自动生成
+    details: 已有 OpenAPI 时，可用附属 Codegen 工具生成类型和相同模型的业务 API。
 ---
 
 ## 核心模型
 
 ```text
-RequestAdapter
-      ↓
-HttpOptions → Service
-                 ├─ http
-                 ├─ with()
-                 └─ createApi(modulePath, methods)
-                              ↓
-                           API 实例
-                              └─ $http → 独立 Resource 实例
+Backend API
+     ↓
+  Service
+     ↓
+Business API
+     ↓
+  业务代码
 ```
 
-- **Http**：执行请求、拼接路径、处理响应并登记请求生命周期。
-- **Resource**：继承 Http，补充上传、下载等通用请求能力。
-- **Service**：保存服务配置，派生服务前缀并创建业务 API。
-- **API 实例**：只暴露业务方法，通过只读 `$http` 调用底层请求。
-
-## 路径模型
-
-所有请求统一按四段组成：
-
-```text
-serverUrl + rootPath + modulePath + requestPath
-```
-
-例如：
-
-```text
-/api + v1 + user + list → /api/v1/user/list
-```
-
-业务代码只表达业务能力：
+Service 定义服务边界，业务 API 表达具体业务能力：
 
 ```ts
 await userApi.list({ page: 1 })
-await userApi.save(data)
+await orderApi.submit(data)
 ```
 
-## 主要能力
+业务代码无需重复拼接地址，也无需为每个页面重复处理相同的请求规则。
 
-### Runtime
+## 已有 OpenAPI？
 
-- 可替换的请求适配器
-- 多 Service 配置隔离
-- `service.with()` 浅合并派生
-- 独立 `$http` 实例
-- Loading 延迟显示与批次完成
-- 错误即时拦截与全局中止
-- `AbortSignal` 单请求取消
+Codegen 是 API 建模的辅助工具，生成的仍然是同一种业务 API：
 
-### API Codegen
+```text
+OpenAPI → API Codegen → TypeScript 类型 + Business API
+```
 
-- OpenAPI 类型生成
-- 业务模块和方法生成
-- Service 导入与 `rootPath` 派生
-- 重名方法诊断
-- 原子替换生成目录
-
-从 [快速开始](/guide/getting-started) 创建第一个 Service，或直接查看 [API Reference](/guide/api-reference)。
+先从 [介绍](/guide/introduction) 理解模型，或在已有 OpenAPI 时查看 [API Codegen](/codegen/)。
