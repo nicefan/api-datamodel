@@ -2,7 +2,7 @@ name: Deploy docs to Cloudflare Pages
 
 on:
   push:
-    branches: [docs]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -40,19 +40,24 @@ jobs:
           DOCS_BASE: /
         run: npm run build
 
-      - name: Ensure Cloudflare Pages project exists
+      - name: Configure Cloudflare Pages project
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if ! npx wrangler@latest pages project list --json | grep -q '"name": "'"$CLOUDFLARE_PAGES_PROJECT"'"'; then
-            npx wrangler@latest pages project create "$CLOUDFLARE_PAGES_PROJECT" --production-branch=docs
+            npx wrangler@latest pages project create "$CLOUDFLARE_PAGES_PROJECT" --production-branch=master
           fi
+          curl --silent --show-error --fail-with-body --request PATCH \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PAGES_PROJECT" \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data '{"production_branch":"master"}' > /dev/null
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy docs/.vitepress/dist --project-name=api-datamodel --branch=docs
+          command: pages deploy docs/.vitepress/dist --project-name=api-datamodel --branch=master
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,21 @@
 {
   "name": "api-datamodel",
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "description": "TypeScript business API modeling and OpenAPI code generation for Axios, Fetch, UniApp, and Taro.",
+  "keywords": [
+    "typescript",
+    "api",
+    "api-client",
+    "api-modeling",
+    "openapi",
+    "swagger",
+    "codegen",
+    "http-client",
+    "axios",
+    "fetch",
+    "uniapp",
+    "taro"
+  ],
   "author": {
     "name": "nicefan",
     "email": "covien@msn.com"
@@ -9,7 +24,11 @@
     "type": "git",
     "url": "git+https://github.com/nicefan/api-datamodel.git"
   },
-  "homepage": "https://github.com/nicefan/api-datamodel#readme",
+  "homepage": "https://nicefan.github.io/api-datamodel/",
+  "bugs": {
+    "url": "https://github.com/nicefan/api-datamodel/issues"
+  },
+  "license": "MIT",
   "files": [
     "dist",
     "types",
@@ -24,6 +43,9 @@
   "types": "./dist/index.d.ts",
   "engines": {
     "node": ">=18.17"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "rollup -c",
