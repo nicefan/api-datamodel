@@ -75,15 +75,13 @@ import {
 ## 正式文档索引
 
 - [介绍](./docs/guide/introduction.md)
-- [Service 与业务 API](./docs/guide/service-api.md)
-- [服务前缀与模块路径](./docs/guide/request-path.md)
-- [请求与响应](./docs/guide/request.md)
-- [请求批次管理](./docs/guide/request-feedback.md)
-- [上传、适配与请求扩展](./docs/guide/extensions.md)
+- [API 建模](./docs/guide/api-modeling.md)
+- [请求处理](./docs/guide/request.md)
+- [请求适配器](./docs/guide/adapter.md)
+- [请求扩展](./docs/guide/extensions.md)
 - [API Codegen](./docs/codegen/index.md)
 - [Codegen 配置](./docs/codegen/config.md)
-- [生成规则](./docs/codegen/generation-rules.md)
-- [OpenAPI 编写规范](./docs/codegen/openapi-conventions.md)
+- [后端开发约定](./docs/codegen/backend-conventions.md)
 
 ## 验证命令
 

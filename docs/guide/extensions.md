@@ -1,4 +1,4 @@
-# 上传、适配与请求扩展
+# 请求扩展
 
 `Http` 提供 `request`、`get`、`post`、`put` 和 `delete`。内置 `Resource` 只是一个继承 `Http` 并增加公共请求方法的示例，顶层 `createService()` 默认使用它，所以普通业务 API 自动具有上传和下载能力。
 
@@ -162,49 +162,26 @@ class ProjectResource extends Resource {
 
 只有多个业务模块都需要的协议级或平台级行为才适合放入 Resource。单个业务模块独有的操作仍应定义在 `createApi()` 的业务方法中。
 
-## 请求适配器
+## 独立使用 Http
 
-Adapter 只负责实际网络通信：接收 `RequestConfig` 并返回 Promise。路径建模、业务响应判断和反馈批次由运行时其他部分处理。
-
-```ts
-interface RequestAdapter {
-  (config: RequestConfig): Promise<any>
-  [key: string]: any
-}
-```
-
-### `fetchAdapter`
-
-适用于浏览器和 Node.js 18+，支持查询参数、常见 Body、JSON/Text/Blob 响应、超时、凭证和 `AbortSignal`。
+不需要 Service 和业务模块时，也可以直接创建请求实例：
 
 ```ts
-const service = createService({
-  adapter: fetchAdapter,
+import axios from 'axios'
+import { Http } from 'api-datamodel'
+
+const http = new Http({
+  adapter: axios,
   serverUrl: '/api',
 })
+
+const health = await http.get('health')
 ```
 
-### `buildAdapter(platform)`
-
-将具有 `request`、`uploadFile` 和 `downloadFile` 的 UniApp/Taro 类平台对象转换为 Adapter：
-
-```ts
-const service = createService({
-  adapter: buildAdapter(uni),
-  serverUrl: 'https://example.com/api',
-})
+```text
+new Http(options)       → 直接获得一个请求实例
+createService(options)  → 获得可重复创建模块实例的 Service
+service.createApi()     → 获得带独立请求实例的业务模块
 ```
 
-平台请求任务会响应 `AbortSignal` 并调用任务的 `abort()`。
-
-### 自定义 Adapter
-
-接入 Axios 或其他请求库时，只需完成配置和响应形状的映射：
-
-```ts
-const axiosAdapter: RequestAdapter = (config) => {
-  return axios.request(config)
-}
-```
-
-自定义 Adapter 应处理 URL、请求方法、参数、请求体、响应类型、超时和取消信号。鉴权等业务项目配置通常放在 [请求与响应](./request#请求拦截器) 的 `requestInterceptors` 中。
+普通业务仍应优先使用 Service 和 Business API；直接创建 Http 适合不需要业务模块建模的底层场景。不同网络请求实现的接入方式见 [请求适配器](./adapter)。

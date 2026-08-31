@@ -18,10 +18,10 @@ Backend API → Service → Business API → 业务代码
 ## 安装
 
 ```bash
-pnpm add api-datamodel
+pnpm add api-datamodel axios
 ```
 
-也可以使用 npm 或 yarn。运行环境需要 Node.js 18.17 或更高版本。
+Axios 由业务项目自行安装。如果运行环境支持 Fetch，也可以只安装 `api-datamodel` 并使用内置 `fetchAdapter`。运行环境需要 Node.js 18.17 或更高版本。
 
 ## 快速开始
 
@@ -29,10 +29,11 @@ pnpm add api-datamodel
 
 ```ts
 // src/api/dataModel.ts
-import { createService, fetchAdapter } from 'api-datamodel'
+import axios from 'axios'
+import { createService } from 'api-datamodel'
 
 export const service = createService({
-  adapter: fetchAdapter,
+  adapter: axios,
   serverUrl: '/api',
 })
 ```
@@ -96,10 +97,13 @@ api-datamodel-codegen sys
 
 - [介绍](https://nicefan.github.io/api-datamodel/guide/introduction)
 - [快速开始](https://nicefan.github.io/api-datamodel/guide/getting-started)
-- [Service 与业务 API](https://nicefan.github.io/api-datamodel/guide/service-api)
-- [请求与响应](https://nicefan.github.io/api-datamodel/guide/request)
-- [请求批次管理](https://nicefan.github.io/api-datamodel/guide/request-feedback)
+- [API 建模](https://nicefan.github.io/api-datamodel/guide/api-modeling)
+- [请求处理](https://nicefan.github.io/api-datamodel/guide/request)
+- [请求适配器](https://nicefan.github.io/api-datamodel/guide/adapter)
+- [请求扩展](https://nicefan.github.io/api-datamodel/guide/extensions)
 - [API Codegen](https://nicefan.github.io/api-datamodel/codegen/)
+- [Codegen 配置](https://nicefan.github.io/api-datamodel/codegen/config)
+- [后端开发约定](https://nicefan.github.io/api-datamodel/codegen/backend-conventions)
 
 ## 公开入口
 

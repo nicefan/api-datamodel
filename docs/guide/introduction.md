@@ -32,7 +32,7 @@ Business API
 - `Service` 保存一组服务规则，并创建业务 API。
 - 业务 API 按模块暴露方法，通过 `$http` 使用底层请求能力。
 
-普通使用只需要理解 Service 和业务 API。需要增加或改变底层请求能力时，再阅读 [上传、适配与请求扩展](./extensions)。
+普通使用只需要理解 Service 和业务 API。需要接入网络请求实现时阅读 [请求适配器](./adapter)，需要增加或改变底层请求能力时再阅读 [请求扩展](./extensions)。
 
 ## 两种建立 API 的方式
 
@@ -51,5 +51,5 @@ const userApi = service.createApi('user', {
 下一步：
 
 - [快速开始](./getting-started)
-- [Service 与业务 API](./service-api)
+- [API 建模](./api-modeling)
 - [API Codegen](../codegen/)

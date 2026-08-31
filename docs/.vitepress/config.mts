@@ -21,23 +21,17 @@ export default defineConfig({
         ],
       },
       {
-        text: 'API 建模',
+        text: '核心使用',
         items: [
-          { text: 'Service 与业务 API', link: '/guide/service-api' },
-          { text: '服务前缀与模块路径', link: '/guide/request-path' },
+          { text: 'API 建模', link: '/guide/api-modeling' },
+          { text: '请求处理', link: '/guide/request' },
         ],
       },
       {
-        text: '请求处理',
+        text: '底层与适配',
         items: [
-          { text: '请求与响应', link: '/guide/request' },
-          { text: '请求批次管理', link: '/guide/request-feedback' },
-        ],
-      },
-      {
-        text: '底层能力',
-        items: [
-          { text: '上传、适配与请求扩展', link: '/guide/extensions' },
+          { text: '请求适配器', link: '/guide/adapter' },
+          { text: '请求扩展', link: '/guide/extensions' },
         ],
       },
       {
@@ -45,8 +39,7 @@ export default defineConfig({
         items: [
           { text: 'API Codegen', link: '/codegen/' },
           { text: '配置', link: '/codegen/config' },
-          { text: '生成规则', link: '/codegen/generation-rules' },
-          { text: 'OpenAPI 编写规范', link: '/codegen/openapi-conventions' },
+          { text: '后端开发约定', link: '/codegen/backend-conventions' },
         ],
       },
     ],

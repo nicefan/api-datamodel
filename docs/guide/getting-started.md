@@ -5,19 +5,20 @@
 ## 1. 安装
 
 ```bash
-pnpm add api-datamodel
+pnpm add api-datamodel axios
 ```
 
-运行环境需要 Node.js 18.17 或更高版本。浏览器和 Node.js 18+ 可以直接使用内置 `fetchAdapter`。
+Axios 由业务项目自行安装。如果运行环境支持 Fetch，也可以只安装 `api-datamodel`，并直接使用内置 `fetchAdapter`。运行环境需要 Node.js 18.17 或更高版本。
 
 ## 2. 创建 Service
 
 ```ts
 // src/api/dataModel.ts
-import { createService, fetchAdapter } from 'api-datamodel'
+import axios from 'axios'
+import { createService } from 'api-datamodel'
 
 export const service = createService({
-  adapter: fetchAdapter,
+  adapter: axios,
   serverUrl: '/api',
 })
 ```
@@ -57,7 +58,7 @@ const users = await userApi.list({ page: 1 })
 
 ## 下一步
 
-- [Service 与业务 API](./service-api)
-- [服务前缀与模块路径](./request-path)
-- [请求与响应](./request)
+- [API 建模](./api-modeling)
+- [请求处理](./request)
+- [请求适配器](./adapter)
 - [API Codegen](../codegen/)
