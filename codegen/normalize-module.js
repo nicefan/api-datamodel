@@ -7,10 +7,10 @@ function normalizedPath(value) {
 }
 
 function createPathNormalizer(service) {
-  const rootPath = trimSlashes(service.rootPath ?? '')
-  if (service.rootPathSource !== 'document' || !rootPath) return normalizedPath
-  const segments = rootPath.split('/').filter(Boolean)
-  // 网关可能只把 rootPath 的后半段写进文档，依次生成后缀以兼容完整前缀和尾部前缀。
+  const basePath = trimSlashes(service.basePath ?? '')
+  if (!service.pathInDocument || !basePath) return normalizedPath
+  const segments = basePath.split('/').filter(Boolean)
+  // 文档可能只包含 basePath 的后半段，依次生成后缀以兼容完整基础路径和尾部路径。
   const prefixes = segments.map((_, index) => `/${segments.slice(index).join('/')}`)
   return (value) => {
     const routePath = normalizedPath(value)

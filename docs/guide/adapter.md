@@ -23,7 +23,7 @@ import { createService } from 'api-datamodel'
 
 export const service = createService({
   adapter: axios,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 ```
 
@@ -38,7 +38,7 @@ const request = axios.create({
 
 export const service = createService({
   adapter: request,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 ```
 
@@ -57,7 +57,7 @@ import { createService, fetchAdapter } from 'api-datamodel'
 
 export const service = createService({
   adapter: fetchAdapter,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 ```
 
@@ -83,7 +83,7 @@ import { buildAdapter, createService } from 'api-datamodel'
 
 export const service = createService({
   adapter: buildAdapter(uni),
-  serverUrl: 'https://example.com/api',
+  baseUrl: 'https://example.com/api',
 })
 ```
 

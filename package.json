@@ -1,6 +1,6 @@
 {
   "name": "api-datamodel",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "TypeScript business API modeling and OpenAPI code generation for Axios, Fetch, UniApp, and Taro.",
   "keywords": [
     "typescript",

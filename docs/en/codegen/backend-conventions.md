@@ -36,7 +36,7 @@ modulePath = user
 userApi
 ```
 
-Use first-level paths with clear business meaning, such as `/user`, `/order`, and `/role`. Gateway, environment, and version prefixes should not be mixed arbitrarily into business modules. If document paths do include them, align them with Codegen's [`rootPath` and `rootPathSource`](./config#service) configuration.
+Use first-level paths with clear business meaning, such as `/user`, `/order`, and `/role`. Gateway, environment, and version prefixes should not be mixed arbitrarily into business modules. If document paths do include them, align them with Codegen's [`basePath` and `pathInDocument`](./config#service) configuration.
 
 ## Method Path Conventions
 

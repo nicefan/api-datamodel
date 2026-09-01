@@ -14,9 +14,9 @@ interface HttpOptions {
   /** 请求适配器，包含有request方法的对象，如：axios */
   adapter: RequestAdapter
   /** 不同环境的服务器地址或代理前缀 */
-  serverUrl?: string
+  baseUrl?: string
   /** 业务请求前缀 */
-  rootPath?: string
+  basePath?: string
   /** 默认请求配置 */
   defRequestConfig?: DefaultRequestConfig
   /** 请求前拦截处理 */

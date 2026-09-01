@@ -44,8 +44,8 @@ Service 使用 `HttpOptions` 定义整套请求规则：
 ```ts
 interface HttpOptions {
   adapter: RequestAdapter
-  serverUrl?: string
-  rootPath?: string
+  baseUrl?: string
+  basePath?: string
   defRequestConfig?: DefaultRequestConfig
   requestInterceptors?: (config: RequestConfig) => RequestConfig
   transformResponse?: (result: Obj) => {
@@ -65,7 +65,7 @@ import { defineConfig } from 'api-datamodel'
 
 const options = defineConfig({
   adapter: axios,
-  serverUrl: '/api',
+  baseUrl: '/api',
   defRequestConfig: {
     timeout: 30_000,
     headers: { 'content-type': 'application/json' },

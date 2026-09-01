@@ -1,15 +1,18 @@
-export function createApiFactoryContent(service) {
-  if (!service.importPath) throw new Error('service.importPath 必须指向已配置 Service 所在的模块')
-  if (!service.importName) throw new Error('service.importName 必须指定导出的 Service 名称')
-  if (!/^[A-Za-z_$][\w$]*$/.test(service.importName)) {
-    throw new Error('service.importName 必须是有效的导出名称')
-  }
+const identifier = '[A-Za-z_$][\\w$]*'
+const defaultImportPattern = new RegExp(`^import\\s+(${identifier})\\s+from\\s+(['"])\\S+\\2\\s*;?$`)
+const namedImportPattern = new RegExp(`^import\\s*\\{\\s*(${identifier})\\s*\\}\\s*from\\s+(['"])\\S+\\2\\s*;?$`)
 
-  const serviceExpression = service.rootPath
-    ? `${service.importName}.with({ rootPath: ${JSON.stringify(service.rootPath)} })`
-    : service.importName
+export function parseImportStatement(value) {
+  const statement = value.trim()
+  const match = statement.match(defaultImportPattern) ?? statement.match(namedImportPattern)
+  if (!match) throw new Error('importStatement 仅支持单个默认导入或单成员具名导入')
+  return { statement, importName: match[1] }
+}
+
+export function createApiFactoryContent(importConfig, service) {
+  const serviceExpression = `${importConfig.importName}.with({ basePath: ${JSON.stringify(service.basePath)} })`
   return [
-    `import { ${service.importName} } from ${JSON.stringify(service.importPath)}`,
+    importConfig.statement,
     '',
     `export default ${serviceExpression}.createApi`,
     '',

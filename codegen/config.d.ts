@@ -5,16 +5,14 @@ export interface CodegenApiConfig {
   outputDir?: string
   /** src/api 下的输出文件夹；省略时使用当前配置名称。 */
   outputFolder?: string
-  /** Service 导入路径及其派生请求前缀配置。 */
+  /** 工厂方法或 Service 的默认导入、单成员具名导入语句。 */
+  importStatement?: string
+  /** 存在时将导入项作为 Service，并通过 basePath 派生工厂方法。 */
   service?: {
-    /** 已配置 Service 所在的 TS 模块路径；最终合并配置中必填。 */
-    importPath?: string
-    /** 模块导出的 Service 名称；最终合并配置中必填。 */
-    importName?: string
-    /** 存在时通过 service.with({ rootPath }) 创建派生 Service。 */
-    rootPath?: string
-    /** rootPath 的来源，指定网关或是接口固定前缀；默认是网关前缀。 */
-    rootPathSource?: 'gateway' | 'document'
+    /** 通过 service.with({ basePath }) 创建派生 Service。 */
+    basePath: string
+    /** 提取模块信息前是否排除文档路径中的 basePath。 */
+    pathInDocument?: boolean
   }
   /** 接口返回的数据结构配置。 */
   responseSchema?: {

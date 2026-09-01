@@ -19,7 +19,7 @@ import { createService } from 'api-datamodel'
 
 export const service = createService({
   adapter: axios,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 ```
 

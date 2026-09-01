@@ -36,7 +36,7 @@ modulePath = user
 userApi
 ```
 
-推荐使用 `/user`、`/order`、`/role` 等有明确业务含义的一级路径。网关前缀、环境路径和版本前缀不应随意混入业务模块；如果文档路径确实包含这些前缀，应与 Codegen 的 [`rootPath` 和 `rootPathSource`](./config#service) 配置对应。
+推荐使用 `/user`、`/order`、`/role` 等有明确业务含义的一级路径。网关前缀、环境路径和版本前缀不应随意混入业务模块；如果文档路径确实包含这些前缀，应与 Codegen 的 [`basePath` 和 `pathInDocument`](./config#service) 配置对应。
 
 ## 方法路径约定
 

@@ -23,11 +23,10 @@ import defineConfig from 'api-datamodel/codegen/defineConfig.js'
 
 export default defineConfig({
   outputDir: 'src/api',
+  importStatement: "import service from '@/api/dataModel'",
   service: {
-    importPath: '@/api/dataModel',
-    importName: 'service',
-    rootPath: 'system',
-    rootPathSource: 'gateway',
+    basePath: 'system',
+    pathInDocument: false,
   },
   responseSchema: {
     namePrefix: 'AjaxResult',
@@ -58,7 +57,8 @@ export default defineConfig({
 | Option | Scope | Default | Description |
 | --- | --- | --- | --- |
 | `outputDir` | Global or per API | `src/api` | Generation root, which must be inside the project directory |
-| `service` | Global or per API | `rootPathSource: 'gateway'` | Service import and generated-path interpretation |
+| `importStatement` | Global or per API | None | Factory method or Service import statement |
+| `service` | Global or per API | None | Service derivation and generated-path interpretation |
 | `responseSchema` | Global or per API | `AjaxResult` + `data` | Rules for recognizing response wrapper models |
 | `generatorOptions` | Global or per API | Built-in recommended options | Options passed to `swagger-typescript-api` |
 | `documentRequest` | Global or per API | `timeout: 30000` | Timeout and headers for fetching remote documents |
@@ -99,63 +99,43 @@ apis: {
 
 `url` may be a remote address, a local JSON/YAML file, or a `file:` URL. `label` affects only the text shown during interactive selection and does not change generated files or code.
 
-## `service`
+## `importStatement` and `service`
 
 ```ts
+importStatement: "import service from '@/api/dataModel'"
 service: {
-  importPath?: string
-  importName?: string
-  rootPath?: string
-  rootPathSource?: 'gateway' | 'document'
+  basePath: string
+  pathInDocument?: boolean
 }
 ```
 
-### Service Import
-
-- `importPath`: module path of the configured Service.
-- `importName`: exported Service name from that module; it must be a valid identifier.
-
-Both fields must exist in the final merged configuration. Generated `resource.ts` imports the Service using these values.
-
-### `rootPath`
-
-When `rootPath` exists, generated `resource.ts` first derives a Service:
+`importStatement` accepts one default import or one named import member. Without `service`, the imported binding is written directly into each business module as the factory method:
 
 ```ts
-const apiService = service.with({ rootPath: 'system' })
+importStatement: "import { createApi } from '@/api/service'"
 ```
 
-Business modules are then created through `createApi()` on the derived Service. The original Service is not changed. Without `rootPath`, the original Service is used directly.
+When `service` is configured, the imported binding is treated as a Service and `resource.ts` derives the factory through `with({ basePath })`. `basePath` must be a non-empty string.
 
-### `rootPathSource`
+### `basePath`
 
-This field specifies whether OpenAPI paths already include `rootPath`.
+Generated `resource.ts` first derives a Service:
 
-| Value | Default | Use when | Path handling during generation |
-| --- | --- | --- | --- |
-| `gateway` | Yes | `rootPath` is added only at runtime by the gateway or Service, and OpenAPI paths do not contain it | Keep OpenAPI paths unchanged |
-| `document` | No | OpenAPI paths already include `rootPath` | Remove `rootPath` from the beginning of each path so the generated `modulePath` does not repeat the service prefix |
-
-`gateway` example:
-
-```text
-rootPath: system
-OpenAPI: /user/list
-modulePath: user
+```ts
+const apiService = service.with({ basePath: 'system' })
 ```
 
-`document` example:
+Business modules are then created through `createApi()` on the derived Service. The original Service is not changed.
+
+### `pathInDocument`
+
+Set this to `true` when OpenAPI paths begin with `basePath`. The generator excludes that base path before deriving the module name and `modulePath`. The default is `false`.
 
 ```text
-rootPath: system
+basePath: system
 OpenAPI: /system/user/list
-Normalized path: /user/list
 modulePath: user
 ```
-
-The current implementation also tries to match the longest suffix of `rootPath`. For example, `rootPath: api/v1` can remove `/api/v1` from `/api/v1/user/list`, or `/v1` from `/v1/user/list`.
-
-When `rootPath` is omitted or empty, `document` does not remove anything. If you are unsure whether OpenAPI contains the service prefix, inspect the document's actual `paths` instead of inferring it only from production request URLs.
 
 ## `responseSchema`
 
@@ -230,9 +210,9 @@ This configuration is used only to fetch remote OpenAPI documents. The timeout m
 ```ts
 export default defineConfig({
   outputDir: 'src/api',
+  importStatement: "import service from '@/api/dataModel'",
   service: {
-    importPath: '@/api/dataModel',
-    importName: 'service',
+    basePath: 'api',
   },
   documentRequest: {
     headers: { Authorization: 'Bearer token' },
@@ -241,7 +221,7 @@ export default defineConfig({
     workflow: {
       url: './openapi/workflow.yaml',
       service: {
-        importName: 'workflowService',
+        basePath: 'workflow',
       },
       documentRequest: {
         headers: { 'x-document-source': 'workflow' },
@@ -251,4 +231,4 @@ export default defineConfig({
 })
 ```
 
-The final `workflow` configuration inherits the global `importPath`, overrides `importName`, and retains both document request headers.
+The final `workflow` configuration inherits the global import statement, overrides `basePath`, and retains both document request headers.

@@ -124,7 +124,7 @@ class ProjectResource extends Resource {
 
 export const service = ProjectResource.createService({
   adapter: fetchAdapter,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 ```
 
@@ -172,7 +172,7 @@ import { Http } from 'api-datamodel'
 
 const http = new Http({
   adapter: axios,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 
 const health = await http.get('health')

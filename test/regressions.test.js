@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
-import { createApiFactoryContent } from '../codegen/api-factory-template.js'
+import { createApiFactoryContent, parseImportStatement } from '../codegen/api-factory-template.js'
 
 import {
   Http,
@@ -26,18 +26,13 @@ test('API Codegen defineConfig module has a default export and configuration typ
   assert.match(configDeclarations, /interface CodegenConfig/)
 })
 
-test('API Codegen exports the configured service createApi with an optional rootPath', async () => {
-  const plain = createApiFactoryContent({ importPath: '@/api/services', importName: 'service' })
-  const rooted = createApiFactoryContent({
-    importPath: '@/api/services',
-    importName: 'systemService',
-    rootPath: 'admin',
-  })
+test('API Codegen extracts default and named imports and derives a service factory', async () => {
+  assert.equal(parseImportStatement("import createApi from '@/api/service'").importName, 'createApi')
+  const importConfig = parseImportStatement('import { systemService } from "@/api/services"')
+  const rooted = createApiFactoryContent(importConfig, { basePath: 'admin' })
 
-  assert.match(plain, /export default service\.createApi/)
-  assert.doesNotMatch(plain, /service\.with/)
   assert.match(rooted, /import \{ systemService \} from "@\/api\/services"/)
-  assert.match(rooted, /export default systemService\.with\(\{ rootPath: "admin" \}\)\.createApi/)
+  assert.match(rooted, /export default systemService\.with\(\{ basePath: "admin" \}\)\.createApi/)
 })
 
 test('fetch adapter maps query parameters and normalizes a JSON response', async () => {
@@ -144,9 +139,9 @@ test('service composes normalized paths and with creates an independent configur
     urls.push(config.url)
     return { data: config.url }
   }
-  const service = createService({ adapter, serverUrl: '/api/', rootPath: '/v1/' })
-  const derived = service.with({ rootPath: 'v2' })
-  const twiceDerived = derived.with({ serverUrl: '/system-api' })
+  const service = createService({ adapter, baseUrl: '/api/', basePath: '/v1/' })
+  const derived = service.with({ basePath: 'v2' })
+  const twiceDerived = derived.with({ baseUrl: '/system-api' })
 
   await service.createApi('user', {}).$http.get('/list/', undefined, { silent: true })
   await derived.createApi('user', {}).$http.get('list', undefined, { silent: true })
@@ -181,7 +176,7 @@ test('Resource.createService exposes isolated Resource instances through $http o
 test('with always derives from the original custom Resource', () => {
   class CustomResource extends Resource {}
   const service = CustomResource.createService({ adapter: async () => ({ data: true }) })
-  const derived = service.with({ rootPath: 'v1' }).with({ serverUrl: '/api' })
+  const derived = service.with({ basePath: 'v1' }).with({ baseUrl: '/api' })
 
   assert.equal(Object.getPrototypeOf(service.http.constructor.prototype), CustomResource.prototype)
   assert.equal(Object.getPrototypeOf(derived.http.constructor.prototype), CustomResource.prototype)

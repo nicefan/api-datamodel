@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { generateApi } from 'swagger-typescript-api'
 import { loadSwaggerDocument } from './document-loader.js'
 import { normalizeModule } from './normalize-module.js'
-import { createApiFactoryContent } from './api-factory-template.js'
+import { createApiFactoryContent, parseImportStatement } from './api-factory-template.js'
 
 const builtInTemplateDir = path.resolve(fileURLToPath(import.meta.url), '../templates')
 
@@ -76,16 +76,16 @@ function reportDiagnostics(diagnostics) {
   }
 }
 
-function createApiFactoryFile(outputFiles, service) {
+function createApiFactoryFile(outputFiles, importConfig, service) {
   outputFiles.createFile({
     path: outputFiles.configuration.config.output,
     fileName: 'resource.ts',
-    content: createApiFactoryContent(service),
+    content: createApiFactoryContent(importConfig, service),
   })
 }
 
-function createIndexFile(outputFiles) {
-  const modules = new Set(['resource'])
+function createIndexFile(outputFiles, hasResource) {
+  const modules = new Set(hasResource ? ['resource'] : [])
   for (const { name } of outputFiles.files) {
     const extension = path.extname(name)
     if (extension === '.ts') modules.add(path.basename(name, extension))
@@ -104,7 +104,8 @@ export async function generateCode({
   url,
   outputFolder,
   outputDir,
-  service = {},
+  importStatement,
+  service,
   generatorOptions = {},
   responseSchema = {},
   documentRequest = {},
@@ -112,12 +113,17 @@ export async function generateCode({
 }) {
   if (!url) throw new Error('Swagger 文档地址不能为空')
   if (!outputFolder) throw new Error('输出文件夹不能为空')
+  if (!importStatement) throw new Error('importStatement 不能为空')
 
   const resolvedOutputRoot = path.resolve(cwd, outputDir ?? './src/api')
   const resolvedOutputDir = path.resolve(resolvedOutputRoot, outputFolder)
   validateOutputPath(cwd, resolvedOutputRoot, resolvedOutputDir)
   const resolvedTemplateDir = await resolveTemplateDir(cwd, generatorOptions.templates)
-  const resolvedService = { rootPath: '', rootPathSource: 'gateway', ...service }
+  const importConfig = parseImportStatement(importStatement)
+  const resolvedService = service ? { pathInDocument: false, ...service } : undefined
+  const apiImportConfig = resolvedService
+    ? { statement: 'import createApi from "./resource";', importName: 'createApi' }
+    : importConfig
   const resolvedResponseSchema = { namePrefix: 'AjaxResult', dataField: 'data', ...responseSchema }
   const spec = await loadSwaggerDocument({ cwd, source: url, request: documentRequest })
   await mkdir(path.dirname(resolvedOutputDir), { recursive: true })
@@ -133,13 +139,14 @@ export async function generateCode({
       cleanOutput: true,
       ...generatorOptions,
       responseSchema: resolvedResponseSchema,
-      service: resolvedService,
+      service: resolvedService ?? {},
       codegen: {
+        ...apiImportConfig,
         normalizeModule(options) {
           const context = normalizeModule({
             ...options,
             duplicateMethodStrategy,
-            service: resolvedService,
+            service: resolvedService ?? {},
             responseSchemaPrefix: resolvedResponseSchema.namePrefix,
           })
           diagnostics.push(...context.diagnostics)
@@ -153,8 +160,8 @@ export async function generateCode({
       output: tempDir,
       templates: resolvedTemplateDir,
     })
-    createApiFactoryFile(outputFiles, resolvedService)
-    createIndexFile(outputFiles)
+    if (resolvedService) createApiFactoryFile(outputFiles, importConfig, resolvedService)
+    createIndexFile(outputFiles, Boolean(resolvedService))
     reportDiagnostics(diagnostics)
     await replaceOutputDirectory(tempDir, resolvedOutputDir)
   } catch (error) {

@@ -43,7 +43,7 @@ import {
 
 - 业务接口优先通过 `service.createApi(modulePath, methods)` 定义。
 - 业务方法内部通过 `this.$http` 调用底层请求，不让 URL 和适配器细节进入页面。
-- 请求地址按 `serverUrl + rootPath + modulePath + requestPath` 组合，业务路径段建议不带前后 `/`。
+- 请求地址按 `baseUrl + basePath + modulePath + requestPath` 组合，业务路径段建议不带前后 `/`。
 - 不同后台地址、鉴权、响应结构或请求规则应创建不同 Service；同一规则只改变部分配置时使用 `service.with()`。
 - 单请求取消使用标准 `AbortSignal`，不要引入私有取消协议。
 - 普通业务扩展放在业务 API 中；只有公共请求能力才扩展 `Resource`。
@@ -53,8 +53,8 @@ import {
 ## Codegen 原则
 
 - Codegen 只把 OpenAPI 映射为既有 Service/业务 API 模型，不建立第二套运行时。
-- `service.importPath` 和 `service.importName` 定位业务项目中已经配置的 Service。
-- 配置 `rootPath` 时生成 `service.with({ rootPath }).createApi`，不会修改原 Service。
+- `importStatement` 导入工厂方法；配置 `service` 时则导入 Service 并派生工厂方法。
+- 配置 `basePath` 时生成 `service.with({ basePath }).createApi`，不会修改原 Service。
 - GET、POST、PUT、DELETE 使用快捷方法，其他 HTTP 方法使用 `$http.request()`。
 - `void` 成功响应会被当前模板识别为下载；普通业务接口必须声明明确响应 Schema。
 - `multipart/form-data` 当前不会自动生成 `$http.upload()`。

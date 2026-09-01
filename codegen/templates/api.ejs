@@ -8,18 +8,19 @@ const context = config.codegen.normalizeModule({
   pascalCase,
 });
 const { dataContracts, moduleName, resourceName, routes } = context;
+const { statement: importStatement, importName } = config.codegen;
 %>
 
 <% if (dataContracts.length) { %>
 import type { <%~ dataContracts.join(", ") %> } from "./<%~ config.fileNames.dataContracts %>"
 <% } %>
 
-import createApi from "./resource";
+<%~ importStatement %>
 /**
 * <%~ routes[0].raw.tags.join(", ") %>
 
 **/
-export const <%= moduleName %>Api = createApi('<%= resourceName %>', {
+export const <%= moduleName %>Api = <%= importName %>('<%= resourceName %>', {
     <% routes.forEach((route) => { %>
         <%~ includeFile('./procedure-call.ejs', { ...it, route }) %>
     <% }) %>

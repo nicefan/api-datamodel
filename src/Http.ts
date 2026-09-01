@@ -1,18 +1,18 @@
 import requestManager from './utils/requestManager'
 import { buildService, type HttpConstructor } from './service'
 
-function joinUrl(serverUrl = '', ...paths: Array<string | undefined>) {
+function joinUrl(baseUrl = '', ...paths: Array<string | undefined>) {
   const normalizedPaths = paths
     .filter((path): path is string => Boolean(path))
     .map((path) => path.replace(/^\/+|\/+$/g, ''))
     .filter(Boolean)
 
-  if (!normalizedPaths.length) return serverUrl || ''
-  if (serverUrl === '/') return `/${normalizedPaths.join('/')}`
+  if (!normalizedPaths.length) return baseUrl || ''
+  if (baseUrl === '/') return `/${normalizedPaths.join('/')}`
 
-  const normalizedServerUrl = serverUrl.replace(/\/+$/g, '')
-  return normalizedServerUrl
-    ? `${normalizedServerUrl}/${normalizedPaths.join('/')}`
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/g, '')
+  return normalizedBaseUrl
+    ? `${normalizedBaseUrl}/${normalizedPaths.join('/')}`
     : normalizedPaths.join('/')
 }
 
@@ -26,8 +26,8 @@ class Http {
     const modulePath = typeof optionsOrModulePath === 'string' ? optionsOrModulePath : ''
     const options = typeof optionsOrModulePath === 'object' ? optionsOrModulePath : instanceOptions
     this.resolvedOptions = options ? { ...new.target.defaultOptions, ...options } : new.target.defaultOptions
-    const { serverUrl, rootPath } = this.resolvedOptions
-    this.requestBaseUrl = joinUrl(serverUrl, rootPath, modulePath)
+    const { baseUrl, basePath } = this.resolvedOptions
+    this.requestBaseUrl = joinUrl(baseUrl, basePath, modulePath)
   }
 
   static createService<H extends Http>(this: HttpConstructor<H>, options: HttpOptions) {

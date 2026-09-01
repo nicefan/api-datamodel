@@ -23,11 +23,10 @@ import defineConfig from 'api-datamodel/codegen/defineConfig.js'
 
 export default defineConfig({
   outputDir: 'src/api',
+  importStatement: "import service from '@/api/dataModel'",
   service: {
-    importPath: '@/api/dataModel',
-    importName: 'service',
-    rootPath: 'system',
-    rootPathSource: 'gateway',
+    basePath: 'system',
+    pathInDocument: false,
   },
   responseSchema: {
     namePrefix: 'AjaxResult',
@@ -58,7 +57,8 @@ export default defineConfig({
 | 配置项 | 位置 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `outputDir` | 全局或单 API | `src/api` | 生成根目录，必须位于项目目录内 |
-| `service` | 全局或单 API | `rootPathSource: 'gateway'` | Service 导入和生成路径解释配置 |
+| `importStatement` | 全局或单 API | 无 | 工厂方法或 Service 的导入语句 |
+| `service` | 全局或单 API | 无 | Service 派生和生成路径解释配置 |
 | `responseSchema` | 全局或单 API | `AjaxResult` + `data` | 响应包装模型识别规则 |
 | `generatorOptions` | 全局或单 API | 内置推荐配置 | 传给 `swagger-typescript-api` 的选项 |
 | `documentRequest` | 全局或单 API | `timeout: 30000` | 获取远程文档时的超时和请求头 |
@@ -99,63 +99,43 @@ apis: {
 
 `url` 可以是远程地址、本地 JSON/YAML 文件或 `file:` URL。`label` 只影响交互选择时的显示文本，不改变生成文件和代码。
 
-## `service`
+## `importStatement` 与 `service`
 
 ```ts
+importStatement: "import service from '@/api/dataModel'"
 service: {
-  importPath?: string
-  importName?: string
-  rootPath?: string
-  rootPathSource?: 'gateway' | 'document'
+  basePath: string
+  pathInDocument?: boolean
 }
 ```
 
-### Service 导入
-
-- `importPath`：已配置 Service 所在的模块路径；
-- `importName`：该模块导出的 Service 名称，必须是合法标识符。
-
-最终合并结果中两项都必须存在。生成的 `resource.ts` 会按这两个字段导入 Service。
-
-### `rootPath`
-
-存在 `rootPath` 时，生成的 `resource.ts` 会先派生 Service：
+`importStatement` 只接受单个默认导入或单成员具名导入。未配置 `service` 时，导入项作为工厂方法直接写入各业务模块：
 
 ```ts
-const apiService = service.with({ rootPath: 'system' })
+importStatement: "import { createApi } from '@/api/service'"
 ```
 
-各业务模块再通过该派生 Service 的 `createApi()` 创建。原 Service 不会被修改。未配置 `rootPath` 时直接使用原 Service。
+配置 `service` 时，导入项作为 Service，生成的 `resource.ts` 通过 `with({ basePath })` 派生工厂方法。`basePath` 必须是非空字符串。
 
-### `rootPathSource`
+### `basePath`
 
-该字段决定 OpenAPI 路径是否已经包含 `rootPath`。
+生成的 `resource.ts` 会先派生 Service：
 
-| 取值 | 是否默认 | 适用场景 | 生成时的路径处理 |
-| --- | --- | --- | --- |
-| `gateway` | 是 | `rootPath` 只由网关或 Service 在运行时添加，OpenAPI 路径不含该前缀 | 保持 OpenAPI 路径不变 |
-| `document` | 否 | OpenAPI 路径已经包含 `rootPath` | 从路径开头移除 `rootPath`，避免生成的 `modulePath` 重复包含服务前缀 |
-
-`gateway` 示例：
-
-```text
-rootPath: system
-OpenAPI: /user/list
-modulePath: user
+```ts
+const apiService = service.with({ basePath: 'system' })
 ```
 
-`document` 示例：
+各业务模块再通过该派生 Service 的 `createApi()` 创建。原 Service 不会被修改。
+
+### `pathInDocument`
+
+OpenAPI 路径以 `basePath` 开头时配置为 `true`，生成器会先排除该基础路径，再提取模块名和 `modulePath`。默认 `false`。
 
 ```text
-rootPath: system
+basePath: system
 OpenAPI: /system/user/list
-规范路径: /user/list
 modulePath: user
 ```
-
-当前实现还会尝试匹配 `rootPath` 的最长尾部前缀。例如 `rootPath: api/v1` 可以从 `/api/v1/user/list` 移除 `/api/v1`，也可以从 `/v1/user/list` 移除 `/v1`。
-
-未配置或传入空 `rootPath` 时，`document` 不会移除任何路径。无法确定 OpenAPI 是否包含服务前缀时，应先查看文档中的实际 `paths`；不要仅根据线上请求地址判断。
 
 ## `responseSchema`
 
@@ -230,9 +210,9 @@ documentRequest: {
 ```ts
 export default defineConfig({
   outputDir: 'src/api',
+  importStatement: "import service from '@/api/dataModel'",
   service: {
-    importPath: '@/api/dataModel',
-    importName: 'service',
+    basePath: 'api',
   },
   documentRequest: {
     headers: { Authorization: 'Bearer token' },
@@ -241,7 +221,7 @@ export default defineConfig({
     workflow: {
       url: './openapi/workflow.yaml',
       service: {
-        importName: 'workflowService',
+        basePath: 'workflow',
       },
       documentRequest: {
         headers: { 'x-document-source': 'workflow' },
@@ -251,4 +231,4 @@ export default defineConfig({
 })
 ```
 
-`workflow` 最终继承全局 `importPath`，覆盖 `importName`，并同时保留两个文档请求头。
+`workflow` 最终继承全局导入语句，覆盖 `basePath`，并同时保留两个文档请求头。

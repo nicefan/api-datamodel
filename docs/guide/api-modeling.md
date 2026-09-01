@@ -22,7 +22,7 @@ import { createService } from 'api-datamodel'
 
 export const service = createService({
   adapter: axios,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 ```
 
@@ -45,8 +45,8 @@ await service.http.get('health')
 同一后台和请求规则只改变少量配置时，可以派生新的 Service：
 
 ```ts
-const systemService = service.with({ rootPath: 'system' })
-const workflowService = service.with({ rootPath: 'workflow' })
+const systemService = service.with({ basePath: 'system' })
+const workflowService = service.with({ basePath: 'workflow' })
 ```
 
 `with()` 浅合并配置并返回独立 Service，不修改来源 Service。`defRequestConfig` 等嵌套对象需要调用方自行合并。
@@ -118,13 +118,13 @@ Service 保存配置
 完整请求地址由四部分组成：
 
 ```text
-serverUrl + rootPath + modulePath + requestPath
+baseUrl + basePath + modulePath + requestPath
 ```
 
 | 部分 | 配置位置 | 适合表达 |
 | --- | --- | --- |
-| `serverUrl` | `HttpOptions` | 当前环境或平台的后台地址、代理地址 |
-| `rootPath` | `HttpOptions` | 可以跨环境复用的服务前缀 |
+| `baseUrl` | `HttpOptions` | 当前环境或平台的后台地址、代理地址 |
+| `basePath` | `HttpOptions` | 可以跨环境复用的服务基础路径 |
 | `modulePath` | `service.createApi()` | user、order 等业务模块前缀 |
 | `requestPath` | `$http` 请求方法 | list、save、detail 等模块内路径 |
 
@@ -133,8 +133,8 @@ serverUrl + rootPath + modulePath + requestPath
 ```ts
 const service = createService({
   adapter: axios,
-  serverUrl: '/gateway',
-  rootPath: 'system',
+  baseUrl: '/gateway',
+  basePath: 'system',
 })
 
 const userApi = service.createApi('user', {
@@ -150,9 +150,9 @@ const userApi = service.createApi('user', {
 /gateway/system/user/list
 ```
 
-简单项目通常只需要配置 `serverUrl`。需要区分环境地址和可复用的业务服务前缀时，再同时使用 `serverUrl` 和 `rootPath`。
+简单项目通常只需要配置 `baseUrl`。需要区分环境地址和可复用的业务服务基础路径时，再同时使用 `baseUrl` 和 `basePath`。
 
-路径组合时会忽略空路径段，清理业务路径段两端多余的 `/`，并保留 `serverUrl` 中的协议和域名。推荐 `rootPath`、`modulePath`、`requestPath` 均不带前后 `/`。
+路径组合时会忽略空路径段，清理业务路径段两端多余的 `/`，并保留 `baseUrl` 中的协议和域名。推荐 `basePath`、`modulePath`、`requestPath` 均不带前后 `/`。
 
 ## Service 派生与多服务
 
@@ -161,14 +161,14 @@ Web 和 App 使用不同地址，但共享相同业务路径时，可以分别�
 ```ts
 const webService = createService({
   adapter: axios,
-  serverUrl: '/gateway',
-  rootPath: 'system',
+  baseUrl: '/gateway',
+  basePath: 'system',
 })
 
 const appService = createService({
   adapter: buildAdapter(uni),
-  serverUrl: 'https://example.com/gateway',
-  rootPath: 'system',
+  baseUrl: 'https://example.com/gateway',
+  basePath: 'system',
 })
 ```
 

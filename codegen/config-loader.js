@@ -1,6 +1,7 @@
 import { access, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { parseImportStatement } from './api-factory-template.js'
 
 export const defaultConfigFiles = [
   'api-datamodel.config.ts',
@@ -53,18 +54,14 @@ function validateApiOptions(options, name, requireUrl = false) {
   assertOptionalString(options.outputDir, `${name}.outputDir`)
   assertOptionalString(options.outputFolder, `${name}.outputFolder`)
   assertOptionalString(options.label, `${name}.label`)
+  assertOptionalString(options.importStatement, `${name}.importStatement`)
+  if (options.importStatement) parseImportStatement(options.importStatement)
   if (options.service !== undefined) {
     assertObject(options.service, `${name}.service`)
-    assertOptionalString(options.service.importPath, `${name}.service.importPath`)
-    assertOptionalString(options.service.importName, `${name}.service.importName`)
-    if (options.service.importName && !/^[A-Za-z_$][\w$]*$/.test(options.service.importName)) {
-      throw new Error(`${name}.service.importName 必须是有效的导出名称`)
-    }
-    if (options.service.rootPath !== undefined && typeof options.service.rootPath !== 'string') {
-      throw new Error(`${name}.service.rootPath 必须是字符串`)
-    }
-    if (options.service.rootPathSource !== undefined && !['gateway', 'document'].includes(options.service.rootPathSource)) {
-      throw new Error(`${name}.service.rootPathSource 只能是 gateway 或 document`)
+    assertOptionalString(options.service.basePath, `${name}.service.basePath`)
+    if (!options.service.basePath) throw new Error(`${name}.service.basePath 不能为空`)
+    if (options.service.pathInDocument !== undefined && typeof options.service.pathInDocument !== 'boolean') {
+      throw new Error(`${name}.service.pathInDocument 必须是布尔值`)
     }
   }
   if (options.responseSchema !== undefined) {
@@ -139,7 +136,10 @@ export function resolveNamedApi(config, name) {
     ...api,
     generatorOptions: { ...(config.generatorOptions ?? {}), ...(api.generatorOptions ?? {}) },
     responseSchema: { ...(config.responseSchema ?? {}), ...(api.responseSchema ?? {}) },
-    service: { ...(config.service ?? {}), ...(api.service ?? {}) },
+    service:
+      config.service === undefined && api.service === undefined
+        ? undefined
+        : { ...(config.service ?? {}), ...(api.service ?? {}) },
     documentRequest: {
       ...(config.documentRequest ?? {}),
       ...(api.documentRequest ?? {}),

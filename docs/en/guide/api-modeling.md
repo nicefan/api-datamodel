@@ -22,7 +22,7 @@ import { createService } from 'api-datamodel'
 
 export const service = createService({
   adapter: axios,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 ```
 
@@ -45,8 +45,8 @@ Business endpoints should still be organized through `createApi()` so applicatio
 When the backend and request rules are shared but a few settings differ, derive another Service:
 
 ```ts
-const systemService = service.with({ rootPath: 'system' })
-const workflowService = service.with({ rootPath: 'workflow' })
+const systemService = service.with({ basePath: 'system' })
+const workflowService = service.with({ basePath: 'workflow' })
 ```
 
 `with()` shallow-merges settings and returns an independent Service without changing the source Service. Callers must merge nested objects such as `defRequestConfig` themselves.
@@ -118,13 +118,13 @@ These instances share the request settings of their Service, but state from one 
 A complete request URL contains four parts:
 
 ```text
-serverUrl + rootPath + modulePath + requestPath
+baseUrl + basePath + modulePath + requestPath
 ```
 
 | Part | Configured in | Intended meaning |
 | --- | --- | --- |
-| `serverUrl` | `HttpOptions` | Backend or proxy URL for the current environment or platform |
-| `rootPath` | `HttpOptions` | Reusable service prefix across environments |
+| `baseUrl` | `HttpOptions` | Backend or proxy URL for the current environment or platform |
+| `basePath` | `HttpOptions` | Reusable service base path across environments |
 | `modulePath` | `service.createApi()` | Business module prefix such as user or order |
 | `requestPath` | `$http` request method | Path within the module such as list, save, or detail |
 
@@ -133,8 +133,8 @@ For example:
 ```ts
 const service = createService({
   adapter: axios,
-  serverUrl: '/gateway',
-  rootPath: 'system',
+  baseUrl: '/gateway',
+  basePath: 'system',
 })
 
 const userApi = service.createApi('user', {
@@ -150,9 +150,9 @@ The final URL is:
 /gateway/system/user/list
 ```
 
-Simple projects usually need only `serverUrl`. Use both `serverUrl` and `rootPath` when you need to distinguish an environment-specific address from a reusable business-service prefix.
+Simple projects usually need only `baseUrl`. Use both `baseUrl` and `basePath` when you need to distinguish an environment-specific address from a reusable business-service base path.
 
-Path composition ignores empty segments, removes extra leading and trailing `/` characters from business path segments, and preserves the protocol and domain in `serverUrl`. We recommend omitting leading and trailing `/` from `rootPath`, `modulePath`, and `requestPath`.
+Path composition ignores empty segments, removes extra leading and trailing `/` characters from business path segments, and preserves the protocol and domain in `baseUrl`. We recommend omitting leading and trailing `/` from `basePath`, `modulePath`, and `requestPath`.
 
 ## Service Derivation and Multiple Services
 
@@ -161,14 +161,14 @@ When Web and App use different addresses but share business paths, create separa
 ```ts
 const webService = createService({
   adapter: axios,
-  serverUrl: '/gateway',
-  rootPath: 'system',
+  baseUrl: '/gateway',
+  basePath: 'system',
 })
 
 const appService = createService({
   adapter: buildAdapter(uni),
-  serverUrl: 'https://example.com/gateway',
-  rootPath: 'system',
+  baseUrl: 'https://example.com/gateway',
+  basePath: 'system',
 })
 ```
 

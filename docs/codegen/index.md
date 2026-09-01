@@ -25,7 +25,7 @@ import { createService } from 'api-datamodel'
 
 export const service = createService({
   adapter: axios,
-  serverUrl: '/api',
+  baseUrl: '/api',
 })
 ```
 
@@ -38,10 +38,7 @@ import defineConfig from 'api-datamodel/codegen/defineConfig.js'
 
 export default defineConfig({
   outputDir: 'src/api',
-  service: {
-    importPath: '@/api/dataModel',
-    importName: 'service',
-  },
+  importStatement: "import { createApi } from '@/api/dataModel'",
   responseSchema: {
     namePrefix: 'AjaxResult',
     dataField: 'data',
@@ -84,7 +81,6 @@ api-datamodel-codegen https://example.com/openapi.json --output sys
 src/api/sys/
 ├─ data-contracts.ts
 ├─ <业务模块>.ts
-├─ resource.ts
 └─ index.ts
 ```
 
@@ -138,9 +134,9 @@ modulePath: user
 requestPath: /${id}/roles
 ```
 
-运行时再按照 `serverUrl + rootPath + modulePath + requestPath` 组合完整地址。
+运行时再按照 `baseUrl + basePath + modulePath + requestPath` 组合完整地址。
 
-默认 `rootPathSource: 'gateway'` 时，OpenAPI 路径保持不变。配置为 `document` 且存在 `rootPath` 时，生成器会从路径开头移除完整 `rootPath` 或能够匹配的最长尾部前缀。具体配置见 [配置](./config#rootpathsource)。
+OpenAPI 路径包含 `basePath` 时，应配置 `pathInDocument: true`，避免生成的模块名和 `modulePath` 带上该基础路径。具体配置见 [配置](./config#pathindocument)。
 
 ### 方法名
 
@@ -190,7 +186,7 @@ AjaxResultUser
 
 - `data-contracts.ts` 等类型文件；
 - 按模块生成的业务 API 文件；
-- `resource.ts`：导入已配置 Service，并导出对应 `createApi`；
+- `resource.ts`：配置 `service` 时生成，通过导入的 Service 派生并导出对应 `createApi`；
 - `index.ts`：导出输出目录中的所有 TypeScript 模块。
 
 生成器先写入同级临时目录，全部成功后再整体替换正式输出目录；替换失败时尝试恢复旧目录。开启 `cleanOutput` 时，输出子目录只应保存生成内容。
