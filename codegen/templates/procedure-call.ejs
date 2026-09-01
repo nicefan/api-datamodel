@@ -74,8 +74,11 @@ const bodyContentKindTmpl = requestContentKind[requestBodyInfo.contentKind] || n
 const responseFormatTmpl = responseContentKind[responseBodyInfo.success && responseBodyInfo.success.schema && responseBodyInfo.success.schema.contentKind] || null;
 const securityTmpl = security ? 'true' : null;
 
-if (pathParams.length && !shortPath.endsWith('}')) {
-  queryTmpl = `{ ${pathParamsNames.join(', ')} }`
+// 文档声明为 path、但没有对应路径占位符的参数，按查询参数兼容处理。
+const queryPathParamNames = pathParamsNames.filter((name) => !shortPath.includes(`\${${name}}`))
+if (queryPathParamNames.length) {
+  const queryPathParams = queryPathParamNames.join(', ')
+  queryTmpl = queryTmpl ? `{ ...${queryTmpl}, ${queryPathParams} }` : `{ ${queryPathParams} }`
 }
 
 let configStr = '';

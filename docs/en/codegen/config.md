@@ -19,7 +19,7 @@ The configuration may also export a synchronous or asynchronous function that re
 ## Complete Example
 
 ```ts
-import defineConfig from 'api-datamodel/codegen/defineConfig.js'
+import { defineConfig } from 'api-datamodel/codegen'
 
 export default defineConfig({
   outputDir: 'src/api',

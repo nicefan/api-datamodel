@@ -110,8 +110,12 @@ export async function loadProjectConfig(cwd, configPath) {
   try {
     if (extension === '.json') config = JSON.parse(await readFile(resolvedPath, 'utf8'))
     else if (['.ts', '.mts', '.cts'].includes(extension)) {
-      const { createJiti } = await import('jiti')
+      const jitiModule = await import('jiti')
+      // jiti 2.7 增加了具名导出，低版本只提供默认导出，两种形式的工厂接口一致。
+      const createJiti = jitiModule.createJiti ?? jitiModule.default
       config = await createJiti(import.meta.url).import(resolvedPath, { default: true })
+      // jiti 2.6 不会处理 default 选项，需要兼容其返回的模块命名空间。
+      config = config?.default ?? config
     } else {
       const configModule = await import(pathToFileURL(resolvedPath).href)
       config = configModule.default ?? configModule

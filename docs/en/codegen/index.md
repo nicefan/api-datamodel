@@ -40,7 +40,7 @@ export const service = createService({
 Create `api-datamodel.config.ts` in the project root:
 
 ```ts
-import defineConfig from 'api-datamodel/codegen/defineConfig.js'
+import { defineConfig } from 'api-datamodel/codegen'
 
 export default defineConfig({
   outputDir: 'src/api',

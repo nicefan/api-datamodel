@@ -14,9 +14,9 @@ import {
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
-test('API Codegen defineConfig module has a default export and configuration types', async () => {
-  const { default: defineConfig } = await import('../codegen/defineConfig.js')
-  const declarations = await readFile(new URL('../codegen/defineConfig.d.ts', import.meta.url), 'utf8')
+test('API Codegen defineConfig module has a named export and configuration types', async () => {
+  const { defineConfig } = await import('../codegen/index.js')
+  const declarations = await readFile(new URL('../codegen/index.d.ts', import.meta.url), 'utf8')
   const configDeclarations = await readFile(new URL('../codegen/config.d.ts', import.meta.url), 'utf8')
 
   assert.equal(typeof defineConfig, 'function')

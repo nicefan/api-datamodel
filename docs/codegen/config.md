@@ -19,7 +19,7 @@ Codegen 按顺序查找：
 ## 完整示例
 
 ```ts
-import defineConfig from 'api-datamodel/codegen/defineConfig.js'
+import { defineConfig } from 'api-datamodel/codegen'
 
 export default defineConfig({
   outputDir: 'src/api',

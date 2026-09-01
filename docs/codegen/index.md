@@ -40,7 +40,7 @@ export const service = createService({
 在项目根目录创建 `api-datamodel.config.ts`：
 
 ```ts
-import defineConfig from 'api-datamodel/codegen/defineConfig.js'
+import { defineConfig } from 'api-datamodel/codegen'
 
 export default defineConfig({
   outputDir: 'src/api',
