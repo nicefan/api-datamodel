@@ -23,7 +23,7 @@ Backend API → Service → Business API → 业务代码
 pnpm add api-datamodel axios
 ```
 
-Axios 由业务项目自行安装。如果运行环境支持 Fetch，也可以只安装 `api-datamodel` 并使用内置 `fetchAdapter`。运行环境需要 Node.js 18.17 或更高版本。
+Axios 由业务项目自行安装。如果运行环境支持 Fetch，也可以只安装 `api-datamodel` 并使用内置 `fetchAdapter`。
 
 ## 快速开始
 

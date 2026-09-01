@@ -12,6 +12,12 @@ TypeScript Types + Business APIs
 
 Generated output uses the [API Modeling](../guide/api-modeling) model from this guide rather than a separate request system.
 
+Install the development dependencies and use Node.js 18 or later before running Codegen:
+
+```bash
+pnpm add -D inquirer jiti swagger-typescript-api@12.0.4
+```
+
 ## Workflow
 
 ### 1. Prepare a Service
@@ -61,7 +67,7 @@ api-datamodel-codegen sys
 You can also specify a remote or local document and an output folder directly:
 
 ```bash
-api-datamodel-codegen ./openapi.yaml local
+api-datamodel-codegen ./openapi.json local
 api-datamodel-codegen https://example.com/openapi.json --output sys
 ```
 

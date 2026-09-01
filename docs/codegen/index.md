@@ -12,6 +12,12 @@ TypeScript Types + Business APIs
 
 生成结果仍然使用手册中的 [API 建模](../guide/api-modeling) 模型，不是另一套请求体系。
 
+使用 Codegen 前安装开发依赖，并使用 Node.js 18 或更高版本：
+
+```bash
+pnpm add -D inquirer jiti swagger-typescript-api@12.0.4
+```
+
 ## 使用流程
 
 ### 1. 准备 Service
@@ -61,7 +67,7 @@ api-datamodel-codegen sys
 也可直接指定远程或本地文档和输出文件夹：
 
 ```bash
-api-datamodel-codegen ./openapi.yaml local
+api-datamodel-codegen ./openapi.json local
 api-datamodel-codegen https://example.com/openapi.json --output sys
 ```
 

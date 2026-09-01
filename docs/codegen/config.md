@@ -64,7 +64,7 @@ export default defineConfig({
 | `documentRequest` | 全局或单 API | `timeout: 30000` | 获取远程文档时的超时和请求头 |
 | `duplicateMethodStrategy` | 全局或单 API | `strip` | 重名方法处理策略 |
 | `apis` | 全局 | 无 | 按名称保存的单 API 配置集合 |
-| `url` | 单 API | 无 | 远程 URL、本地 JSON/YAML 路径或 `file:` URL |
+| `url` | 单 API | 无 | 远程 URL、本地 JSON 路径或 `file:` URL |
 | `outputFolder` | 单 API | 当前 API 名称 | `outputDir` 下的输出子目录 |
 | `label` | 单 API | 当前 API 名称 | 交互选择时显示的名称 |
 
@@ -91,13 +91,13 @@ src/api/sys
 apis: {
   sys: {
     label: '系统管理',
-    url: './openapi/sys.yaml',
+    url: './openapi/sys.json',
     outputFolder: 'sys',
   },
 }
 ```
 
-`url` 可以是远程地址、本地 JSON/YAML 文件或 `file:` URL。`label` 只影响交互选择时的显示文本，不改变生成文件和代码。
+`url` 可以是远程地址、本地 JSON 文件或 `file:` URL。`label` 只影响交互选择时的显示文本，不改变生成文件和代码。
 
 ## `importStatement` 与 `service`
 
@@ -201,7 +201,7 @@ documentRequest: {
 }
 ```
 
-该配置只用于获取远程 OpenAPI 文档。超时必须大于 0，默认 30 秒；请求头可用于文档鉴权。本地 `.json`、`.yaml`、`.yml` 文件直接从项目目录解析，不使用该请求配置。
+该配置只用于获取远程 OpenAPI 文档。超时必须大于 0，默认 30 秒；请求头可用于文档鉴权。本地 `.json` 文件直接从项目目录解析，不使用该请求配置。
 
 ## 配置继承与覆盖
 
@@ -219,7 +219,7 @@ export default defineConfig({
   },
   apis: {
     workflow: {
-      url: './openapi/workflow.yaml',
+      url: './openapi/workflow.json',
       service: {
         basePath: 'workflow',
       },

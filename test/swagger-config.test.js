@@ -371,17 +371,17 @@ test('API Codegen reports HTTP and invalid JSON document errors clearly', async 
   }
 })
 
-test('API Codegen accepts local YAML documents and rejects unknown CLI options', async () => {
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'api-datamodel-codegen-yaml-'))
+test('API Codegen accepts local JSON documents and rejects unknown CLI options', async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'api-datamodel-codegen-json-'))
   try {
-    const documentPath = path.join(tempDir, 'openapi.yaml')
+    const documentPath = path.join(tempDir, 'openapi.json')
     await writeFile(
       path.join(tempDir, 'api-datamodel.config.mjs'),
       `export default { importStatement: "import { createApi } from '@/api/services'" }`
     )
     await writeFile(
       documentPath,
-      'openapi: 3.0.0\ninfo:\n  title: Local YAML\n  version: 1.0.0\npaths: {}\n'
+      JSON.stringify({ openapi: '3.0.0', info: { title: 'Local JSON', version: '1.0.0' }, paths: {} })
     )
     const result = await runGenerator([documentPath, 'local'], tempDir)
     assert.equal(result.code, 0, result.stderr || result.stdout)

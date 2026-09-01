@@ -23,7 +23,7 @@ Backend API → Service → Business API → Application Code
 pnpm add api-datamodel axios
 ```
 
-Applications install Axios themselves. If the runtime supports Fetch, you can install only `api-datamodel` and use the built-in `fetchAdapter`. Node.js 18.17 or later is required.
+Applications install Axios themselves. If the runtime supports Fetch, you can install only `api-datamodel` and use the built-in `fetchAdapter`.
 
 ## Quick Start
 

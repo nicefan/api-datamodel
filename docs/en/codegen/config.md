@@ -64,7 +64,7 @@ export default defineConfig({
 | `documentRequest` | Global or per API | `timeout: 30000` | Timeout and headers for fetching remote documents |
 | `duplicateMethodStrategy` | Global or per API | `strip` | Duplicate method-name strategy |
 | `apis` | Global | None | Named collection of per-API configurations |
-| `url` | Per API | None | Remote URL, local JSON/YAML path, or `file:` URL |
+| `url` | Per API | None | Remote URL, local JSON path, or `file:` URL |
 | `outputFolder` | Per API | Current API name | Output subdirectory under `outputDir` |
 | `label` | Per API | Current API name | Label shown during interactive selection |
 
@@ -91,13 +91,13 @@ src/api/sys
 apis: {
   sys: {
     label: 'System Management',
-    url: './openapi/sys.yaml',
+    url: './openapi/sys.json',
     outputFolder: 'sys',
   },
 }
 ```
 
-`url` may be a remote address, a local JSON/YAML file, or a `file:` URL. `label` affects only the text shown during interactive selection and does not change generated files or code.
+`url` may be a remote address, a local JSON file, or a `file:` URL. `label` affects only the text shown during interactive selection and does not change generated files or code.
 
 ## `importStatement` and `service`
 
@@ -201,7 +201,7 @@ documentRequest: {
 }
 ```
 
-This configuration is used only to fetch remote OpenAPI documents. The timeout must be greater than zero and defaults to 30 seconds. Headers can authenticate document requests. Local `.json`, `.yaml`, and `.yml` files are resolved directly from the project directory and do not use this request configuration.
+This configuration is used only to fetch remote OpenAPI documents. The timeout must be greater than zero and defaults to 30 seconds. Headers can authenticate document requests. Local `.json` files are resolved directly from the project directory and do not use this request configuration.
 
 ## Configuration Inheritance and Overrides
 
@@ -219,7 +219,7 @@ export default defineConfig({
   },
   apis: {
     workflow: {
-      url: './openapi/workflow.yaml',
+      url: './openapi/workflow.json',
       service: {
         basePath: 'workflow',
       },

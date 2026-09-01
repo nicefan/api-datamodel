@@ -1,5 +1,5 @@
 export interface CodegenApiConfig {
-  /** Swagger/OpenAPI 的远程地址或本地 JSON/YAML 文件路径。 */
+  /** Swagger/OpenAPI 的远程地址或本地 JSON 文件路径。 */
   url: string
   /** 覆盖全局生成根目录。 */
   outputDir?: string

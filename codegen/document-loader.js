@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parse as parseYaml } from 'yaml'
 
 function formatPreview(content) {
   // 错误响应可能是完整 HTML，只保留足够定位问题的片段，避免终端被大量无关内容淹没。
@@ -10,13 +9,12 @@ function formatPreview(content) {
   return preview.length > 200 ? `${preview.slice(0, 200)}…` : preview
 }
 
-function parseDocument(content, source, format) {
+function parseDocument(content, source) {
   let document
   try {
-    document = format === 'yaml' ? parseYaml(content) : JSON.parse(content)
+    document = JSON.parse(content)
   } catch (error) {
-    const type = format === 'yaml' ? 'YAML' : 'JSON'
-    throw new Error(`Swagger 文档不是有效的 ${type}：${formatPreview(content)}（来源：${source}）`, { cause: error })
+    throw new Error(`Swagger 文档不是有效的 JSON：${formatPreview(content)}（来源：${source}）`, { cause: error })
   }
   if (!document || typeof document !== 'object' || Array.isArray(document)) {
     throw new Error(`Swagger 文档必须是对象（${source}）：${formatPreview(content)}`)
@@ -30,16 +28,12 @@ function parseDocument(content, source, format) {
   return document
 }
 
-function sourceFormat(source, contentType = '') {
-  return /ya?ml/i.test(contentType) || /\.ya?ml(?:$|[?#])/i.test(source) ? 'yaml' : 'json'
-}
-
 async function loadRemoteDocument(source, request = {}) {
   const timeout = request.timeout ?? 30000
   let response
   try {
     response = await fetch(encodeURI(source), {
-      headers: { accept: 'application/json, application/yaml, text/yaml', ...request.headers },
+      headers: { accept: 'application/json', ...request.headers },
       signal: AbortSignal.timeout(timeout),
     })
   } catch (error) {
@@ -56,7 +50,7 @@ async function loadRemoteDocument(source, request = {}) {
     const status = [response.status, response.statusText].filter(Boolean).join(' ')
     throw new Error(`Swagger 文档请求失败（HTTP ${status}）：${formatPreview(content)}`)
   }
-  return parseDocument(content, source, sourceFormat(source, response.headers.get('content-type') ?? ''))
+  return parseDocument(content, source)
 }
 
 async function loadLocalDocument(cwd, source) {
@@ -67,11 +61,11 @@ async function loadLocalDocument(cwd, source) {
   } catch (error) {
     throw new Error(`读取本地 Swagger 文档失败：${filePath}：${error.message}`, { cause: error })
   }
-  return parseDocument(content, filePath, sourceFormat(filePath))
+  return parseDocument(content, filePath)
 }
 
 export function isDocumentSource(value) {
-  return /^(https?:|file:)/i.test(value) || /\.(?:json|ya?ml)$/i.test(value)
+  return /^(https?:|file:)/i.test(value) || /\.json$/i.test(value)
 }
 
 export async function loadSwaggerDocument({ cwd, source, request }) {
