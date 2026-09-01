@@ -1,6 +1,6 @@
 {
   "name": "api-datamodel",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "TypeScript business API modeling and OpenAPI code generation for Axios, Fetch, UniApp, and Taro.",
   "keywords": [
     "typescript",
@@ -32,7 +32,8 @@
   "files": [
     "dist",
     "types",
-    "codegen"
+    "codegen",
+    "USAGE_GUIDE.md"
   ],
   "bin": {
     "api-datamodel-codegen": "./codegen/main.js"

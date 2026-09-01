@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, rename, rm, stat } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateApi } from 'swagger-typescript-api'
@@ -74,6 +74,22 @@ function reportDiagnostics(diagnostics) {
     if (diagnostic.level === 'warning') console.warn(message)
     else console.error(message)
   }
+}
+
+async function removeUpstreamBanners(outputFiles) {
+  await Promise.all(outputFiles.files.map(async ({ name }) => {
+    const filePath = path.join(outputFiles.configuration.config.output, name)
+    const content = await readFile(filePath, 'utf8')
+    const markerIndex = content.indexOf('THIS FILE WAS GENERATED VIA SWAGGER-TYPESCRIPT-API')
+    if (markerIndex < 0) return
+
+    // 保留上游添加的 lint 指令，只移除与当前生成器无关的品牌注释。
+    const bannerStart = content.lastIndexOf('/*', markerIndex)
+    const bannerEnd = content.indexOf('*/', markerIndex)
+    if (bannerStart < 0 || bannerEnd < 0) return
+    const nextContent = `${content.slice(0, bannerStart)}${content.slice(bannerEnd + 2).replace(/^\r?\n+/, '')}`
+    await writeFile(filePath, nextContent)
+  }))
 }
 
 function createApiFactoryFile(outputFiles, importConfig, service) {
@@ -160,6 +176,7 @@ export async function generateCode({
       output: tempDir,
       templates: resolvedTemplateDir,
     })
+    await removeUpstreamBanners(outputFiles)
     if (resolvedService) createApiFactoryFile(outputFiles, importConfig, resolvedService)
     createIndexFile(outputFiles, Boolean(resolvedService))
     reportDiagnostics(diagnostics)
